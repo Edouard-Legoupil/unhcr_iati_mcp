@@ -5,7 +5,7 @@ This module provides Prometheus metrics for monitoring server health,
 performance, and error rates.
 """
 
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
 # Request counters
 datastore_requests = Counter(
@@ -28,8 +28,8 @@ datastore_latency = Histogram(
     buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120]
 )
 
-# Active requests gauge
-active_requests = Counter(
+# Active requests gauge (use Gauge for values that can go up and down)
+active_requests = Gauge(
     'iati_active_requests',
     'Number of active requests',
     ['collection']
