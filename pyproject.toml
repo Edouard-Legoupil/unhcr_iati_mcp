@@ -1,0 +1,13 @@
+[project]
+name="unhcr-iati-mcp"
+version="0.0.1"
+dependencies=[
+  "fastmcp",
+  "httpx",
+  "pydantic",
+  "pydantic-settings",
+  "prometheus-client",
+  "tenacity",
+  "redis",
+  "python-dotenv"
+]
