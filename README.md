@@ -1506,6 +1506,396 @@ def main():
 
 ---
 
+## Natural Language Query Examples
+
+The MCP server is designed to work seamlessly with AI assistants that can translate natural language questions into structured tool calls. Here are examples of questions you can ask:
+
+### Activity Queries
+
+**Natural Language:**
+- "Show me UNHCR projects in Afghanistan"
+- "What are the most recent UNHCR activities?"
+- "Find UNHCR health projects in Kenya"
+- "Get details for activity XM-DAC-41121-ACT-001"
+- "What activities does UNHCR have in Uganda?"
+
+**AI translates to:**
+```python
+# "Show me UNHCR projects in Afghanistan"
+await client.call_tool("unhcr_activity_by_country", {"country_code": "AF"})
+
+# "What are the most recent UNHCR activities?"
+await client.call_tool("unhcr_activities", {"rows": 10, "start": 0})
+
+# "Find UNHCR health projects in Kenya"
+await client.call_tool("unhcr_activity_search", {
+    "query": "recipient_country_code:KE AND sector_code:122*",
+    "rows": 50
+})
+```
+
+### Financial Queries
+
+**Natural Language:**
+- "What is the total budget for UNHCR projects in 2024?"
+- "Show me transactions from Germany to UNHCR"
+- "What are the top donors to UNHCR?"
+- "Get budget breakdown by sector"
+
+**AI translates to:**
+```python
+# "What is the total budget for UNHCR projects in 2024?"
+await client.call_tool("unhcr_budgets", {"year": 2024})
+
+# "Show me transactions from Germany to UNHCR"
+await client.call_tool("unhcr_transaction_search", {
+    "query": "provider_org_ref:DEU"
+})
+
+# "What are the top donors to UNHCR?"
+await client.call_tool("unhcr_top_donors", {"top_n": 10})
+```
+
+### Sector and Geographic Analysis
+
+**Natural Language:**
+- "What sectors does UNHCR work in?"
+- "Show me UNHCR education projects"
+- "Which countries receive the most UNHCR funding?"
+- "Get sector distribution for UNHCR activities"
+
+**AI translates to:**
+```python
+# "What sectors does UNHCR work in?"
+await client.call_tool("unhcr_sector_summary", {})
+
+# "Show me UNHCR education projects"
+await client.call_tool("unhcr_activity_by_sector", {
+    "sector_code": "123",  # 123 = Education
+    "rows": 100
+})
+
+# "Which countries receive the most UNHCR funding?"
+await client.call_tool("unhcr_top_countries", {"top_n": 15})
+```
+
+### Advanced Queries
+
+**Natural Language:**
+- "Find UNHCR projects about climate change and refugees"
+- "Show me high-budget health projects in Syria"
+- "Get activities updated in the last 30 days"
+- "What are UNHCR's active projects?"
+
+**Solr Query Syntax for Advanced Users:**
+
+```python
+# Full-text search
+await client.call_tool("unhcr_activity_search", {
+    "query": "title_narrative:climate* AND description_narrative:refugee*"
+})
+
+# Budget filter
+await client.call_tool("unhcr_activity_search", {
+    "query": "recipient_country_code:SYR AND transaction_value:[1000000 TO *]"
+})
+
+# Date filter
+await client.call_tool("unhcr_activity_search", {
+    "query": "last_updated_datetime:[NOW-30DAYS TO NOW]"
+})
+
+# Status filter
+await client.call_tool("unhcr_activity_search", {
+    "query": "activity_status_code:2"  # 2 = Implementation
+})
+```
+
+### Solr Query Syntax Reference
+
+| Query Type | Example | Description |
+|------------|---------|-------------|
+| Field search | `reporting_org_ref:XM-DAC-41121` | Search specific field |
+| Wildcard | `title_narrative:health*` | Match prefix |
+| Boolean AND | `country:AF AND sector:12220` | Both conditions |
+| Boolean OR | `country:AF OR country:KE` | Either condition |
+| Boolean NOT | `sector:12220 NOT country:SYR` | Exclude condition |
+| Range query | `transaction_value:[1000000 TO *]` | Numeric range |
+| Date range | `last_updated_datetime:[2024-01-01 TO 2024-12-31]` | Date range |
+| Phrase search | `title_narrative:"climate change"` | Exact phrase |
+| Required field | `reporting_org_ref:*` | Field must exist |
+
+### Common IATI Field Names
+
+| Category | Fields |
+|----------|--------|
+| **Identifiers** | `iati_identifier`, `reporting_org_ref`, `activity_status_code` |
+| **Titles** | `title_narrative` |
+| **Descriptions** | `description_narrative` |
+| **Countries** | `recipient_country_code`, `recipient_country_narrative` |
+| **Sectors** | `sector_code`, `sector_narrative` |
+| **Financial** | `transaction_value`, `transaction_value_currency`, `budget_value` |
+| **Dates** | `activity_date`, `last_updated_datetime`, `transaction_date` |
+| **Organizations** | `participating_org_ref`, `provider_org_ref`, `receiver_org_ref` |
+| **Status** | `activity_status_code` (1-6) |
+
+---
+
+## Alternative Implementation Review
+
+> **📚 See Also:** [docs/ALTERNATIVE_IMPLEMENTATION_REVIEW.md](docs/ALTERNATIVE_IMPLEMENTATION_REVIEW.md)
+
+This project reviewed an alternative TypeScript/JavaScript implementation of an IATI MCP server located at `.arc/mcp-iati-main/`. That implementation provides several advanced features that could be incorporated into this Python implementation.
+
+### Key Features from TypeScript Implementation
+
+| Feature | Status | Priority | Description |
+|---------|--------|----------|-------------|
+| **HTTP Transport Mode** | ❌ Not Implemented | 🔴 High | Enables remote deployment over HTTP |
+| **Built-in OAuth Server** | ❌ Not Implemented | 🔴 High | OAuth 2.1 with client credentials grant |
+| **X-API-Key Header Support** | ❌ Not Implemented | 🔴 High | Compatibility with HuggingChat, etc. |
+| **Health Check Endpoint** | ❌ Not Implemented | 🔴 High | Production monitoring |
+| **Protected Resource Metadata** | ❌ Not Implemented | 🟡 Medium | OAuth spec compliance (RFC 9728) |
+| **Dual Authentication** | ❌ Not Implemented | 🟡 Medium | Both OAuth and API key support |
+| **Natural Language Documentation** | ✅ Partially | 🟡 Medium | Better user guidance |
+
+### Recommended Implementation Plan
+
+#### Phase 1: HTTP Transport Mode (2-4 hours)
+Add support for HTTP-based MCP communication alongside the current STDIO mode:
+
+```bash
+# Use HTTP mode
+MCP_TRANSPORT=http PORT=8000 python -m unhcr_iati_mcp.server
+
+# Use STDIO mode (default)
+python -m unhcr_iati_mcp.server
+```
+
+Benefits:
+- Enables remote deployment
+- Allows server to run as a standalone service
+- Required for production use cases
+
+#### Phase 2: Authentication (4-8 hours)
+Implement OAuth 2.1 with built-in server and X-API-Key fallback:
+
+```bash
+# With built-in OAuth
+USE_BUILTIN_OAUTH=true python -m unhcr_iati_mcp.server
+
+# With X-API-Key header support
+# Clients can use: Authorization: Bearer <token> OR X-API-Key: <api_key>
+```
+
+Benefits:
+- Standards-compliant authentication
+- Works with all MCP clients
+- Simplified deployment (no external auth service needed)
+
+#### Phase 3: Production Features (4-8 hours)
+- Health check endpoint (`/health`)
+- Protected Resource Metadata endpoint (`/.well-known/oauth-protected-resource`)
+- Enhanced error handling with proper HTTP status codes
+- Rate limiting and request logging
+
+#### Phase 4: Documentation (2-4 hours)
+- [ ] `docs/DEPLOYMENT.md` - Production deployment guide
+- [ ] `docs/AUTHENTICATION.md` - Authentication documentation
+- [ ] `docs/GETTING_STARTED.md` - Quick start for users
+- [ ] Enhanced tool examples in `docs/TOOLS.md`
+
+### Comparison: TypeScript vs Python Implementation
+
+| Aspect | TypeScript | Python | Notes |
+|--------|------------|--------|-------|
+| **Language** | TypeScript/Node.js | Python | Both are production-ready |
+| **Transport** | STDIO + HTTP | STDIO only | HTTP mode needed for production |
+| **Authentication** | OAuth 2.1 + X-API-Key | Environment vars | OAuth needed for multi-tenant |
+| **Hosted Service** | Yes (mcp-iati.baobabtech.ai) | No | Requires infrastructure |
+| **HTTP Server** | Express.js | Could use FastAPI | FastAPI recommended for Python |
+| **OAuth Library** | Custom implementation | Use authlib | Python has mature OAuth libraries |
+| **API Client** | Facade pattern | Facade pattern | ✅ Both well-designed |
+| **Retry Logic** | Not shown | Tenacity library | ✅ Python has better retry support |
+| **Type Safety** | TypeScript types | Pydantic models | ✅ Both provide type safety |
+| **Error Handling** | Comprehensive | Basic | Room for improvement in Python |
+| **Health Checks** | HTTP endpoint | None | Add for production |
+| **Documentation** | Extensive | Good | Could be enhanced |
+
+### Files to Create
+
+1. **`src/unhcr_iati_mcp/server_http.py`** - HTTP server implementation
+2. **`src/unhcr_iati_mcp/auth/__init__.py`** - Auth package
+3. **`src/unhcr_iati_mcp/auth/oauth.py`** - OAuth 2.1 server
+4. **`src/unhcr_iati_mcp/auth/middleware.py`** - Authentication middleware
+5. **`docs/DEPLOYMENT.md`** - Deployment guide
+6. **`docs/AUTHENTICATION.md`** - Authentication documentation
+7. **`docs/GETTING_STARTED.md`** - Getting started guide
+
+### Files to Modify
+
+1. **`src/unhcr_iati_mcp/server.py`** - Add transport mode detection
+2. **`src/unhcr_iati_mcp/config.py`** - Add new environment variables
+3. **`src/unhcr_iati_mcp/client.py`** - Add token-based auth support
+4. **`Dockerfile`** - Add HTTP/OAuth dependencies
+5. **`docker-compose.yml`** - Add HTTP mode configuration
+
+For detailed analysis and implementation guidance, see [docs/ALTERNATIVE_IMPLEMENTATION_REVIEW.md](docs/ALTERNATIVE_IMPLEMENTATION_REVIEW.md).
+
+---
+
+## Future Enhancements
+
+### Short-term (Next 1-2 Months)
+
+1. **HTTP Transport Mode**
+   - Add FastAPI-based HTTP server
+   - Support MCP JSON-RPC over HTTP
+   - Add health check endpoint
+
+2. **Authentication**
+   - Implement OAuth 2.1 client credentials flow
+   - Add X-API-Key header support
+   - Create token validation middleware
+
+3. **Performance**
+   - Add Redis caching for frequent queries
+   - Implement request/response logging
+   - Add rate limiting
+
+### Medium-term (2-6 Months)
+
+4. **Query Optimization**
+   - Add query result caching
+   - Implement batch requests
+   - Add parallel query support
+
+5. **Data Enhancement**
+   - Add more reference data (regions, themes, etc.)
+   - Implement data validation on ingestion
+   - Add data quality checks
+
+6. **Monitoring**
+   - Add Prometheus metrics for HTTP endpoints
+   - Implement request tracing
+   - Add performance metrics
+
+### Long-term (6+ Months)
+
+7. **Hosted Service**
+   - Deploy public hosted service
+   - Add user registration and management
+   - Implement API key rotation
+
+8. **Advanced Features**
+   - Add notification system for data changes
+   - Implement webhook support
+   - Add scheduled reports
+
+9. **Integration**
+   - Add database sync for offline mode
+   - Implement change data capture (CDC)
+   - Add export to data warehouse support
+
+---
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Server fails to start | Missing `IATI_API_KEY` | Set `IATI_API_KEY` environment variable |
+| Import errors | Missing dependencies | Run `pip install -e .` |
+| Connection timeout | Network issues | Check connection, increase `TIMEOUT_SECONDS` |
+| Rate limit errors | Too many requests | Implement caching, use `fetch_all` with smaller batches |
+| Authentication errors | Invalid API key | Verify your IATI API key is correct |
+| Empty results | Incorrect filter | Check `UNHCR_PUBLISHER_REF` is set to `XM-DAC-41121` |
+
+### Debug Mode
+
+Enable verbose logging to troubleshoot issues:
+
+```bash
+LOG_LEVEL=DEBUG python -m unhcr_iati_mcp.server
+```
+
+This will output detailed information about:
+- HTTP requests and responses
+- Query execution
+- Retry attempts
+- Error details
+
+### Testing Connection
+
+Test if the IATI API is accessible:
+
+```python
+import httpx
+import os
+
+async def test_connection():
+    api_key = os.getenv("IATI_API_KEY")
+    url = "https://api.iatistandard.org/datastore/activity/select"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url,
+            headers={"Ocp-Apim-Subscription-Key": api_key},
+            params={"q": "reporting_org_ref:XM-DAC-41121", "rows": 1}
+        )
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
+
+# Run in Python REPL
+import asyncio
+asyncio.run(test_connection())
+```
+
+### Checking API Key
+
+Verify your IATI API key is valid:
+
+1. Go to https://developer.iatistandard.org/
+2. Log in to your account
+3. Check your subscription key
+4. Test it with a simple curl request:
+
+```bash
+curl -H "Ocp-Apim-Subscription-Key: YOUR_API_KEY" \
+  "https://api.iatistandard.org/datastore/activity/select?q=*:*&rows=1"
+```
+
+### Docker Issues
+
+**Problem: Build fails**
+```bash
+# Make sure you have the correct Python version
+docker --version
+python --version
+
+# Clean build
+docker-compose build --no-cache
+```
+
+**Problem: Container exits immediately**
+```bash
+# Check logs
+docker-compose logs mcp
+
+# Run interactively to see errors
+docker-compose run mcp bash
+```
+
+**Problem: Port already in use**
+```bash
+# Change port in docker-compose.yml
+ports:
+  - "8080:8000"  # Map to different host port
+```
+
+---
+
 ## Development Guidelines
 
 ### Coding Standards
