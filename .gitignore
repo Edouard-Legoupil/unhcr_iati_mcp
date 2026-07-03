@@ -4,4 +4,11 @@ __pycache__/
 .pytest_cache/
 .env
 .venv/
+.arc/*
+src/unhcr_iati_mcp/__pycache__/*
+src/unhcr_iati_mcp/models/__pycache__/*
+src/unhcr_iati_mcp/models/generated/__pycache__/*
+src/unhcr_iati_mcp/tools/__pycache__/*
+src/unhcr_iati_mcp/observability/__pycache__/*
+
 

@@ -1,0 +1,5 @@
+[[mcp_servers]]
+name = "unhcr-iati-mcp"
+transport = "stdio"
+command = "python3"
+args = ["-m", "src.unhcr_iati_mcp.server"]
