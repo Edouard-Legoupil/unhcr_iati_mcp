@@ -30,13 +30,15 @@ def _handle_error(error: Exception, tool_name: str) -> Dict[str, Any]:
     description="Retrieve all UNHCR budgets, optionally filtered by year."
 )
 async def unhcr_budgets(
-    year: int | None = None
+    year: int | None = None,
+    max_records: int = 10000
 ) -> List[Dict[str, Any]]:
     """
     Retrieve all UNHCR budgets.
     
     Args:
         year: Optional year to filter budgets by
+        max_records: Maximum number of records to return (default: 10000)
         
     Returns:
         List of budget dictionaries or empty list on error
@@ -53,7 +55,8 @@ async def unhcr_budgets(
 
         return await iati_client.fetch_all(
             collection="budget",
-            q=q
+            q=q,
+            max_records=max_records
         )
     except IATIError as e:
         logger.error(f"Error in unhcr_budgets: {e}")

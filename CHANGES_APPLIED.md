@@ -114,6 +114,24 @@ else:
 - `unhcr_portfolio_summary`: Added `max_records` parameter (line 23)
 - `unhcr_portfolio_summary`: Added max_records limit to all fetch_all calls (lines 33, 38, 42)
 
+### 8. `/src/unhcr_iati_mcp/tools/activities.py` (Additional Fix)
+
+**Changes:**
+- `unhcr_activity_by_year`: Added `max_records` parameter (line 175)
+- `unhcr_activity_by_year`: Added max_records limit to fetch_all call (line 194)
+
+### 9. `/src/unhcr_iati_mcp/tools/transactions.py` (Additional Fix)
+
+**Changes:**
+- `unhcr_transactions`: Added `max_records` parameter (line 68)
+- `unhcr_transactions`: Added max_records limit to fetch_all call (line 90)
+
+### 10. `/src/unhcr_iati_mcp/tools/budgets.py` (Additional Fix)
+
+**Changes:**
+- `unhcr_budgets`: Added `max_records` parameter (line 33)
+- `unhcr_budgets`: Added max_records limit to fetch_all call (line 54)
+
 ---
 
 ## Fixes Applied by Priority
@@ -136,6 +154,9 @@ else:
 
 ### ✅ P3 - HIGH (Performance)
 - Added `max_records` parameter to all tools that use `fetch_all()`:
+  - `unhcr_activity_by_year` (default: 10000)
+  - `unhcr_transactions` (default: 10000)
+  - `unhcr_budgets` (default: 10000)
   - `unhcr_transaction_search` (default: 10000)
   - `unhcr_export_json` (default: 10000)
   - `unhcr_export_csv` (default: 10000)

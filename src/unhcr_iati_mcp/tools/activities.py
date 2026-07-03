@@ -171,13 +171,15 @@ async def unhcr_activity_by_sector(
     description="Retrieve UNHCR activities for a specific year."
 )
 async def unhcr_activity_by_year(
-    year: int
+    year: int,
+    max_records: int = 10000
 ) -> List[Dict[str, Any]]:
     """
     Retrieve all activities for a specific year.
     
     Args:
         year: The year to filter activities by
+        max_records: Maximum number of records to return (default: 10000)
         
     Returns:
         List of activity dictionaries or empty list on error
@@ -192,7 +194,8 @@ async def unhcr_activity_by_year(
 
         return await iati_client.fetch_all(
             collection="activity",
-            q=q
+            q=q,
+            max_records=max_records
         )
     except IATIError as e:
         logger.error(f"Error in unhcr_activity_by_year: {e}")
