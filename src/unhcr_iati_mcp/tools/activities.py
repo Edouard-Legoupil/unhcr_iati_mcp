@@ -96,7 +96,8 @@ async def unhcr_activity(
 )
 async def unhcr_activity_by_country(
     country_code: str,
-    rows: int = 100
+    rows: int = 100,
+    start: int = 0
 ) -> Dict[str, Any]:
     """
     Retrieve activities for a specific country.
@@ -104,6 +105,7 @@ async def unhcr_activity_by_country(
     Args:
         country_code: ISO 2-letter or 3-letter country code
         rows: Number of results to return (default: 100)
+        start: Starting offset for pagination (default: 0)
         
     Returns:
         Dictionary containing activities for the specified country or error information
@@ -111,13 +113,14 @@ async def unhcr_activity_by_country(
     try:
         q = (
             f'{unhcr_filter()} '
-            f'AND recipient_country_code:{country_code}'
+            f'AND recipient_country_code:"{country_code}"'
         )
 
         return await iati_client.query(
             collection="activity",
             q=q,
-            rows=rows
+            rows=rows,
+            start=start
         )
     except IATIError as e:
         return _handle_error(e, "unhcr_activity_by_country")
@@ -131,7 +134,8 @@ async def unhcr_activity_by_country(
 )
 async def unhcr_activity_by_sector(
     sector_code: str,
-    rows: int = 100
+    rows: int = 100,
+    start: int = 0
 ) -> Dict[str, Any]:
     """
     Retrieve activities for a specific sector.
@@ -139,6 +143,7 @@ async def unhcr_activity_by_sector(
     Args:
         sector_code: IATI sector code (e.g., "1", "2", "3")
         rows: Number of results to return (default: 100)
+        start: Starting offset for pagination (default: 0)
         
     Returns:
         Dictionary containing activities for the specified sector or error information
@@ -146,13 +151,14 @@ async def unhcr_activity_by_sector(
     try:
         q = (
             f'{unhcr_filter()} '
-            f'AND sector_code:{sector_code}'
+            f'AND sector_code:"{sector_code}"'
         )
 
         return await iati_client.query(
             collection="activity",
             q=q,
-            rows=rows
+            rows=rows,
+            start=start
         )
     except IATIError as e:
         return _handle_error(e, "unhcr_activity_by_sector")

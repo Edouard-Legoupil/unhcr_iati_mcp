@@ -19,10 +19,15 @@ logger = get_logger(__name__)
     name="unhcr_portfolio_summary",
     description="Get aggregate counts for UNHCR portfolio (activities, budgets, transactions)."
 )
-async def unhcr_portfolio_summary() -> Dict[str, int]:
+async def unhcr_portfolio_summary(
+    max_records: int = 10000
+) -> Dict[str, int]:
     """
     Retrieve aggregate counts for the UNHCR portfolio.
     
+    Args:
+        max_records: Maximum number of records to fetch per collection (default: 10000)
+        
     Returns:
         Dictionary with counts for activities, budgets, and transactions
         or error counts on failure
@@ -30,15 +35,18 @@ async def unhcr_portfolio_summary() -> Dict[str, int]:
     try:
         activities = await iati_client.fetch_all(
             "activity",
-            unhcr_filter()
+            unhcr_filter(),
+            max_records=max_records
         )
         budgets = await iati_client.fetch_all(
             "budget",
-            unhcr_filter()
+            unhcr_filter(),
+            max_records=max_records
         )
         transactions = await iati_client.fetch_all(
             "transaction",
-            unhcr_filter()
+            unhcr_filter(),
+            max_records=max_records
         )
         return {
             "activities": len(activities),
