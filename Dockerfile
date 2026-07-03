@@ -42,12 +42,13 @@ USER appuser
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    LOG_LEVEL=INFO
+    LOG_LEVEL=INFO \
+    MCP_TRANSPORT=stdio
 
-# Expose port (FastMCP uses stdio, but we expose for flexibility)
+# Expose port for HTTP mode
 EXPOSE 8000
 
-# Health check
+# Health check for HTTP mode
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()" || exit 1
 

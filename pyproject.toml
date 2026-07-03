@@ -9,5 +9,9 @@ dependencies=[
   "prometheus-client",
   "tenacity",
   "redis",
-  "python-dotenv"
+  "python-dotenv",
+  "fastapi>=0.139.0",
+  "uvicorn[standard]",
+  "cryptography",
+  "python-multipart"
 ]

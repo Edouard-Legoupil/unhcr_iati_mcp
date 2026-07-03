@@ -71,13 +71,21 @@ class IATIClient:
         client: HTTPX async client instance
     """
 
-    def __init__(self):
-        """Initialize the IATI client with connection pooling and headers."""
+    def __init__(self, api_key: str | None = None):
+        """
+        Initialize the IATI client with connection pooling and headers.
+        
+        Args:
+            api_key: Optional API key. If not provided, uses settings.iati_api_key
+        """
+        # Use provided api_key or fall back to settings
+        effective_api_key = api_key or settings.iati_api_key
+        
         self.client = httpx.AsyncClient(
             timeout=settings.timeout_seconds,
             headers={
                 "Ocp-Apim-Subscription-Key":
-                    settings.iati_api_key,
+                    effective_api_key,
                 "Accept": "application/json",
             },
             limits=httpx.Limits(

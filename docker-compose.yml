@@ -16,6 +16,20 @@ services:
       - IATI_BASE_URL=${IATI_BASE_URL:-https://api.iatistandard.org/datastore}
       - UNHCR_PUBLISHER_REF=${UNHCR_PUBLISHER_REF:-XM-DAC-41121}
       
+      # Transport mode (stdio or http)
+      - MCP_TRANSPORT=${MCP_TRANSPORT:-stdio}
+      
+      # HTTP mode settings
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
+      - RESOURCE_URL=${RESOURCE_URL:-http://localhost:8000}
+      
+      # OAuth settings
+      - USE_BUILTIN_OAUTH=${USE_BUILTIN_OAUTH:-false}
+      - AUTH_SERVER_URL=${AUTH_SERVER_URL:-}
+      - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID:-default}
+      - OAUTH_TOKEN_EXPIRY=${OAUTH_TOKEN_EXPIRY:-3600}
+      
       # Optional settings
       - TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-120}
       - PAGE_SIZE=${PAGE_SIZE:-1000}
