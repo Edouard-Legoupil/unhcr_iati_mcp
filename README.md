@@ -24,11 +24,10 @@ This MCP server provides AI agents and applications with structured access to UN
 6. [API Reference](#api-reference)
 7. [Data Models](#data-models)
 8. [Observability](#observability)
-9. [Code Review Findings](#code-review-findings)
-10. [Development](#development)
-11. [Deployment](#deployment)
-12. [Troubleshooting](#troubleshooting)
-13. [License](#license)
+9. [Development](#development)
+10. [Deployment](#deployment)
+11. [Troubleshooting](#troubleshooting)
+12. [License](#license)
 
 ---
 
