@@ -9,6 +9,7 @@ from unhcr_iati_mcp.context import (
     iati_client,
     unhcr_filter,
 )
+from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -24,6 +25,7 @@ async def unhcr_portfolio_summary() -> Dict[str, int]:
     
     Returns:
         Dictionary with counts for activities, budgets, and transactions
+        or error counts on failure
     """
     try:
         activities = await iati_client.fetch_all(
@@ -43,10 +45,18 @@ async def unhcr_portfolio_summary() -> Dict[str, int]:
             "budgets": len(budgets),
             "transactions": len(transactions)
         }
-    except Exception as e:
-        logger.exception("Error in portfolio summary")
+    except IATIError as e:
+        logger.error(f"Error in portfolio summary: {e}")
         return {
             "error": str(e),
+            "activities": 0,
+            "budgets": 0,
+            "transactions": 0
+        }
+    except Exception as e:
+        logger.exception("Unexpected error in portfolio summary")
+        return {
+            "error": "Internal server error",
             "activities": 0,
             "budgets": 0,
             "transactions": 0

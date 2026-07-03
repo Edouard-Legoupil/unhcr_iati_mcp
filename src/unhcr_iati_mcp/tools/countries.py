@@ -2,7 +2,7 @@
 Country-related tools for analyzing UNHCR activities by country from IATI Datastore.
 """
 
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 from collections import Counter
 
 from unhcr_iati_mcp.context import (
@@ -10,6 +10,10 @@ from unhcr_iati_mcp.context import (
     iati_client,
     unhcr_filter,
 )
+from unhcr_iati_mcp.client import IATIError
+from unhcr_iati_mcp.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @mcp.tool(
@@ -23,26 +27,34 @@ async def unhcr_top_countries(
     Retrieve and rank countries by the number of activities.
     
     Args:
-        top_n: Number of top countries to return
+        top_n: Number of top countries to return (default: 20)
         
     Returns:
         List of tuples containing (country_code, activity_count) sorted by count descending
+        or empty list on error
     """
-    activities = await iati_client.fetch_all(
-        collection="activity",
-        q=unhcr_filter()
-    )
-
-    counter = Counter()
-
-    for activity in activities:
-
-        countries = activity.get(
-            "recipient_country_code",
-            []
+    try:
+        activities = await iati_client.fetch_all(
+            collection="activity",
+            q=unhcr_filter()
         )
 
-        for country in countries:
-            counter[country] += 1
+        counter = Counter()
 
-    return counter.most_common(top_n)
+        for activity in activities:
+
+            countries = activity.get(
+                "recipient_country_code",
+                []
+            )
+
+            for country in countries:
+                counter[country] += 1
+
+        return counter.most_common(top_n)
+    except IATIError as e:
+        logger.error(f"Error in unhcr_top_countries: {e}")
+        return []
+    except Exception as e:
+        logger.exception("Unexpected error in unhcr_top_countries")
+        return []

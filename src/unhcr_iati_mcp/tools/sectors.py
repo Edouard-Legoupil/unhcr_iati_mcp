@@ -10,6 +10,10 @@ from unhcr_iati_mcp.context import (
     iati_client,
     unhcr_filter,
 )
+from unhcr_iati_mcp.client import IATIError
+from unhcr_iati_mcp.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @mcp.tool(
@@ -22,20 +26,28 @@ async def unhcr_sector_summary() -> Dict[str, int]:
     
     Returns:
         Dictionary mapping sector codes to activity counts
+        or empty dict on error
     """
-    activities = await iati_client.fetch_all(
-        collection="activity",
-        q=unhcr_filter()
-    )
+    try:
+        activities = await iati_client.fetch_all(
+            collection="activity",
+            q=unhcr_filter()
+        )
 
-    sectors = defaultdict(int)
+        sectors = defaultdict(int)
 
-    for activity in activities:
+        for activity in activities:
 
-        for sector in activity.get(
-            "sector_code",
-            []
-        ):
-            sectors[sector] += 1
+            for sector in activity.get(
+                "sector_code",
+                []
+            ):
+                sectors[sector] += 1
 
-    return dict(sectors)
+        return dict(sectors)
+    except IATIError as e:
+        logger.error(f"Error in unhcr_sector_summary: {e}")
+        return {}
+    except Exception as e:
+        logger.exception("Unexpected error in unhcr_sector_summary")
+        return {}

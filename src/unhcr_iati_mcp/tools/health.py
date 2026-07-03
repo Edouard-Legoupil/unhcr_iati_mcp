@@ -9,6 +9,10 @@ from unhcr_iati_mcp.context import (
     iati_client,
     unhcr_filter,
 )
+from unhcr_iati_mcp.client import IATIError
+from unhcr_iati_mcp.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @mcp.tool(
@@ -22,12 +26,19 @@ async def metrics() -> Dict[str, str]:
     Returns:
         Dictionary containing Prometheus metrics
     """
-    # Import here to avoid circular imports
-    from unhcr_iati_mcp.observability.metrics import prometheus_metrics
-    
-    return {
-        "prometheus": prometheus_metrics().decode("utf-8")
-    }
+    try:
+        # Import here to avoid circular imports
+        from unhcr_iati_mcp.observability.metrics import prometheus_metrics
+        
+        return {
+            "prometheus": prometheus_metrics().decode("utf-8")
+        }
+    except Exception as e:
+        logger.exception("Error getting metrics")
+        return {
+            "error": str(e),
+            "prometheus": ""
+        }
 
 
 @mcp.tool(
@@ -87,11 +98,19 @@ async def datastore_ping() -> Dict[str, Any]:
             "service": "Datastore",
             "message": "Connection successful"
         }
-    except Exception as e:
+    except IATIError as e:
+        logger.error(f"Datastore ping failed: {e}")
         return {
             "status": "down",
             "service": "Datastore",
             "message": str(e),
+        }
+    except Exception as e:
+        logger.exception("Unexpected error in datastore ping")
+        return {
+            "status": "down",
+            "service": "Datastore",
+            "message": "Internal server error",
         }
 
 
