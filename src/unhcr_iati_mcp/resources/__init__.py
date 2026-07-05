@@ -7,3 +7,4 @@ from . import donors
 from . import glossary
 from . import portfolio
 from . import schemas
+from . import code_tables

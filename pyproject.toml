@@ -13,5 +13,6 @@ dependencies=[
   "fastapi>=0.139.0",
   "uvicorn[standard]",
   "cryptography",
-  "python-multipart"
+  "python-multipart",
+  "pyreadr"
 ]

@@ -15,3 +15,4 @@ from . import countries
 from . import analytics
 from . import export
 from . import health
+from . import code_resolution
