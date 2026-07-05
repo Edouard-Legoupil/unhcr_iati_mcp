@@ -39,10 +39,13 @@ def _safe_get_list(data: Dict, key: str) -> List:
 
 
 def _safe_get_float(data: Dict, key: str) -> float:
-    """Safely get a float value from a dictionary, handling None and missing keys."""
+    """Safely get a float value from a dictionary, handling None, missing keys, and lists."""
     value = data.get(key, 0)
     if value is None:
         return 0.0
+    # Handle case where value is a list (e.g., [9992.0] from IATI Datastore)
+    if isinstance(value, list) and len(value) > 0:
+        value = value[0]
     try:
         return float(value)
     except (ValueError, TypeError):
@@ -50,10 +53,13 @@ def _safe_get_float(data: Dict, key: str) -> float:
 
 
 def _safe_get_str(data: Dict, key: str) -> str:
-    """Safely get a string value from a dictionary, handling None and missing keys."""
+    """Safely get a string value from a dictionary, handling None, missing keys, and lists."""
     value = data.get(key, "")
     if value is None:
         return ""
+    # Handle case where value is a list (e.g., ["SY"] from IATI Datastore)
+    if isinstance(value, list) and len(value) > 0:
+        value = value[0]
     return str(value)
 
 
@@ -219,15 +225,20 @@ async def unhcr_top_donors_by_country(
         donor_names = {}
         
         for tx in transactions:
+            # In IATI Datastore, these are separate fields, not nested
+            # transaction_provider_org_ref is often None, so use narrative as key
             donor_ref = _safe_get_str(tx, "transaction_provider_org_ref")
-            donor_name = _safe_get_str(tx, "transaction_provider_org_narrative")
+            donor_narrative = _safe_get_str(tx, "transaction_provider_org_narrative")
             value = _safe_get_float(tx, "transaction_value")
             
-            if donor_ref and value > 0:
-                donor_funding[donor_ref] += value
-                donor_transaction_count[donor_ref] += 1
-                if donor_ref not in donor_names:
-                    donor_names[donor_ref] = donor_name if donor_name else f"Donor {donor_ref}"
+            # Use narrative as the donor identifier when ref is not available
+            donor_key = donor_ref if donor_ref else donor_narrative
+            
+            if donor_key and value > 0:
+                donor_funding[donor_key] += value
+                donor_transaction_count[donor_key] += 1
+                if donor_key not in donor_names:
+                    donor_names[donor_key] = donor_narrative if donor_narrative else f"Donor {donor_key}"
         
         if not donor_funding:
             return []
@@ -312,22 +323,27 @@ async def unhcr_implementing_partners(
         partner_info = {}
         
         for activity in activities:
-            # Look at participating organizations
-            participating_orgs = _safe_get_list(activity, "participating_org")
+            # In IATI Datastore, participating_org is stored as separate list fields
+            org_refs = _safe_get_list(activity, "participating_org_ref")
+            org_narratives = _safe_get_list(activity, "participating_org_narrative")
+            org_roles = _safe_get_list(activity, "participating_org_role")
             
-            for org in participating_orgs:
-                org_ref = _safe_get_str(org, "ref") if isinstance(org, dict) else str(org)
-                org_name = _safe_get_str(org, "narrative") if isinstance(org, dict) else str(org)
-                role = _safe_get_str(org, "role") if isinstance(org, dict) else ""
+            # Process each participating organization
+            for i, org_ref in enumerate(org_refs):
+                org_name = org_narratives[i] if i < len(org_narratives) else ""
+                role = org_roles[i] if i < len(org_roles) else ""
                 
                 # We want Implementing partners (role code 4)
                 if role == "4" or role.lower() == "implementing":
-                    partner_activity_count[org_ref] += 1
-                    if org_ref not in partner_info:
-                        partner_info[org_ref] = {
-                            "name": org_name if org_name else f"Partner {org_ref}",
-                            "role": role
-                        }
+                    # Use ref if available, otherwise use narrative
+                    partner_key = org_ref if org_ref else org_name
+                    if partner_key:
+                        partner_activity_count[partner_key] += 1
+                        if partner_key not in partner_info:
+                            partner_info[partner_key] = {
+                                "name": org_name if org_name else f"Partner {partner_key}",
+                                "role": role
+                            }
         
         if not partner_activity_count:
             return []
@@ -531,23 +547,19 @@ async def unhcr_partnership_analysis(
         
         # Analyze partnerships
         role_counts = Counter()
-        role_values = Counter()
         total_partners = 0
         
         for activity in activities:
-            participating_orgs = _safe_get_list(activity, "participating_org")
-            activity_partner_count = 0
+            # In IATI Datastore, participating_org is stored as separate list fields
+            org_roles = _safe_get_list(activity, "participating_org_role")
+            # Note: value is not available in participating_org in IATI Datastore
+            activity_partner_count = len(org_roles) if org_roles else 0
             
-            for org in participating_orgs:
-                if isinstance(org, dict):
-                    role = _safe_get_str(org, "role")
-                    value = _safe_get_float(org, "value")
-                    
-                    if role:
-                        role_counts[role] += 1
-                        role_values[role] += value
-                        activity_partner_count += 1
-                        total_partners += 1
+            for role in org_roles:
+                if role:
+                    role_counts[role] += 1
+                    # role_values[role] += value  # No value field available
+                    total_partners += 1
         
         # Build results
         partnership_roles = {}
@@ -557,7 +569,7 @@ async def unhcr_partnership_analysis(
                 "name": role_info["name"],
                 "description": role_info["description"],
                 "count": count,
-                "total_value": role_values.get(role_code, 0)
+                "total_value": 0  # Value not available in IATI Datastore for participating_org
             }
         
         return {
@@ -784,31 +796,43 @@ async def unhcr_indicator_trends(
             if not year or year < start_year or year > end_year:
                 continue
             
-            # Get result indicators
-            result_indicators = _safe_get_list(activity, "result_indicator")
+            # In IATI Datastore, result_indicator is stored as separate list fields
+            # We need to reconstruct the indicator structure from these fields
+            indicator_refs = _safe_get_list(activity, "result_indicator_ref")
+            indicator_titles = _safe_get_list(activity, "result_indicator_title_narrative")
+            indicator_types = _safe_get_list(activity, "result_indicator_measure")
             
-            for indicator in result_indicators:
-                if isinstance(indicator, dict):
-                    ref = _safe_get_str(indicator, "ref")
-                    title = _safe_get_str(indicator, "title_narrative")
-                    ind_type = _safe_get_str(indicator, "type")
-                    
-                    # Get values
-                    actual = _safe_get_float(indicator, "actual_value")
-                    target = _safe_get_float(indicator, "target_value")
-                    baseline = _safe_get_float(indicator, "baseline_value")
-                    
-                    # Store indicator data
-                    if indicator_ref and ref != indicator_ref:
-                        continue
-                    
-                    indicator_data[ref][year].append({
-                        "actual": actual,
-                        "target": target,
-                        "baseline": baseline,
-                        "title": title,
-                        "type": ind_type
-                    })
+            # Get baseline values
+            baseline_values = _safe_get_list(activity, "result_indicator_baseline_value")
+            
+            # Get period actual and target values
+            # These are repeated for each period, so we take the first set
+            actual_values = _safe_get_list(activity, "result_indicator_period_actual_value")
+            target_values = _safe_get_list(activity, "result_indicator_period_target_value")
+            
+            # Process each indicator
+            num_indicators = max(len(indicator_refs), len(indicator_titles), len(indicator_types))
+            for i in range(num_indicators):
+                ref = indicator_refs[i] if i < len(indicator_refs) else f"indicator_{i}"
+                title = indicator_titles[i] if i < len(indicator_titles) else ""
+                ind_type = indicator_types[i] if i < len(indicator_types) else ""
+                
+                # Get values (use first available if lists are shorter)
+                actual = float(actual_values[i]) if i < len(actual_values) and actual_values[i] else 0
+                target = float(target_values[i]) if i < len(target_values) and target_values[i] else 0
+                baseline = float(baseline_values[i]) if i < len(baseline_values) and baseline_values[i] else 0
+                
+                # Store indicator data
+                if indicator_ref and ref != indicator_ref:
+                    continue
+                
+                indicator_data[ref][year].append({
+                    "actual": actual,
+                    "target": target,
+                    "baseline": baseline,
+                    "title": title,
+                    "type": ind_type
+                })
         
         # Aggregate by year (take average if multiple values per year)
         results = []
