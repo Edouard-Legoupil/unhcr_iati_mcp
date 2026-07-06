@@ -23,6 +23,7 @@ from unhcr_iati_mcp.context import (
     unhcr_filter,
     parse_unhcr_identifier,
     PROGRAMME_LABELS,
+    DEFAULT_MAX_RECORDS,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -93,7 +94,7 @@ async def unhcr_most_funded_sectors(
     country_code: Optional[str] = None,
     top_n: int = 10,
     year: Optional[int] = None,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Get most funded sectors per country with funding amounts."""
     try:
@@ -166,7 +167,7 @@ async def unhcr_top_donors_by_country(
     country_code: Optional[str] = None,
     top_n: int = 10,
     year: Optional[int] = None,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Get main donors by country with contribution amounts."""
     try:
@@ -243,7 +244,7 @@ async def unhcr_top_donors_by_country(
 async def unhcr_implementing_partners(
     country_code: Optional[str] = None,
     top_n: int = 10,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Get main implementing partners by country."""
     try:
@@ -321,7 +322,7 @@ async def unhcr_implementing_partners(
 async def unhcr_earmarking_breakdown(
     year: Optional[int] = None,
     country_code: Optional[str] = None,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> Dict[str, Any]:
     """Get earmarking type breakdown for transactions."""
     try:
@@ -401,7 +402,7 @@ async def unhcr_earmarking_breakdown(
 )
 async def unhcr_partnership_analysis(
     country_code: Optional[str] = None,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> Dict[str, Any]:
     """Analyze partnership levels across activities."""
     try:
@@ -479,7 +480,7 @@ async def unhcr_partnership_analysis(
 async def unhcr_budget_vs_expenditure(
     year: Optional[int] = None,
     country_code: Optional[str] = None,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Compare budget vs expenditure for financial tracking."""
     try:
@@ -575,7 +576,7 @@ async def unhcr_indicator_trends(
     country_code: Optional[str] = None,
     start_year: int = 2020,
     end_year: int = 2025,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Track indicator evolution over time for performance monitoring."""
     try:

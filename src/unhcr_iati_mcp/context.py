@@ -22,6 +22,8 @@ mcp = FastMCP(
 # Create the IATI client instance
 iati_client = IATIClient()
 
+DEFAULT_MAX_RECORDS = 500
+
 
 def unhcr_filter() -> str:
     """

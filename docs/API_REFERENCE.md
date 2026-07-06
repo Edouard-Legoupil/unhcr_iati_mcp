@@ -37,7 +37,7 @@ Handles pagination automatically:
 data = await client.fetch_all(
     collection="transaction",
     q='reporting_org_ref:"XM-DAC-41121"',
-    max_records=10000  # optional limit
+    max_records=500  # optional limit
 )
 ```
 

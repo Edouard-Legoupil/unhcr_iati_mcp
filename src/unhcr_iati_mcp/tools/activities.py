@@ -10,6 +10,7 @@ from unhcr_iati_mcp.context import (
     unhcr_filter,
     unhcr_identifier_filter,
     parse_unhcr_identifier,
+    DEFAULT_MAX_RECORDS,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -145,7 +146,7 @@ async def unhcr_activity_by_sector(
 )
 async def unhcr_activity_by_year(
     year: int,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Retrieve UNHCR activities for a specific year."""
     try:

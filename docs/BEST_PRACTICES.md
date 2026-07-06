@@ -122,7 +122,7 @@ async def get_activity(iati_identifier):
 
 ```python
 # Good: Use reasonable limits
-data = await client.fetch_all(collection="activity", max_records=10000)
+data = await client.fetch_all(collection="activity", max_records=500)
 
 # Bad: Don't fetch unlimited data
 data = await client.fetch_all(collection="activity")  # No limit!

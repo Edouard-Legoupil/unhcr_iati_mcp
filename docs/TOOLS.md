@@ -108,7 +108,7 @@ Filter activities by sector code.
 #### `unhcr_activity_by_year`
 Filter activities by year.
 
-**Parameters:** `year` (required), `max_records` (default: 10000)
+**Parameters:** `year` (required), `max_records` (default: 500)
 
 **Example:** `unhcr_activity_by_year(year=2024)`
 
@@ -159,7 +159,7 @@ List all UNHCR budgets.
 #### `unhcr_top_donors`
 Get top N donors by contribution amount.
 
-**Parameters:** `top_n` (default: 20), `max_records` (default: 10000)
+**Parameters:** `top_n` (default: 20), `max_records` (default: 500)
 
 **Example:** `unhcr_top_donors(top_n=10)`
 
@@ -168,7 +168,7 @@ Get top N donors by contribution amount.
 #### `unhcr_top_donors_by_country`
 Get main donors by country with contribution amounts.
 
-**Parameters:** `country_code`, `top_n` (default: 10), `year`, `max_records` (default: 10000)
+**Parameters:** `country_code`, `top_n` (default: 10), `year`, `max_records` (default: 500)
 
 **Example:** `unhcr_top_donors_by_country(country_code="SY", top_n=5)`
 
@@ -179,7 +179,7 @@ Get main donors by country with contribution amounts.
 #### `unhcr_top_countries`
 Get top N countries by activity count.
 
-**Parameters:** `top_n` (default: 20), `max_records` (default: 10000)
+**Parameters:** `top_n` (default: 20), `max_records` (default: 500)
 
 **Example:** `unhcr_top_countries(top_n=10)`
 
@@ -190,7 +190,7 @@ Get top N countries by activity count.
 #### `unhcr_sector_summary`
 Get sector distribution across UNHCR activities.
 
-**Parameters:** `max_records` (default: 10000)
+**Parameters:** `max_records` (default: 500)
 
 **Example:** `unhcr_sector_summary()`
 
@@ -199,7 +199,7 @@ Get sector distribution across UNHCR activities.
 #### `unhcr_most_funded_sectors`
 Get most funded sectors per country with funding amounts.
 
-**Parameters:** `country_code`, `top_n` (default: 10), `year`, `max_records` (default: 10000)
+**Parameters:** `country_code`, `top_n` (default: 10), `year`, `max_records` (default: 500)
 
 **Example:** `unhcr_most_funded_sectors(country_code="SY", top_n=5)`
 
@@ -210,7 +210,7 @@ Get most funded sectors per country with funding amounts.
 #### `unhcr_budget_vs_expenditure`
 Compare budget vs expenditure for financial tracking.
 
-**Parameters:** `year`, `country_code`, `max_records` (default: 10000)
+**Parameters:** `year`, `country_code`, `max_records` (default: 500)
 
 **Example:** `unhcr_budget_vs_expenditure(year=2025, country_code="SY")`
 
@@ -219,7 +219,7 @@ Compare budget vs expenditure for financial tracking.
 #### `unhcr_indicator_trends`
 Track indicator evolution over time for performance monitoring.
 
-**Parameters:** `indicator_ref`, `country_code`, `start_year` (default: 2020), `end_year` (default: 2025), `max_records` (default: 10000)
+**Parameters:** `indicator_ref`, `country_code`, `start_year` (default: 2020), `end_year` (default: 2025), `max_records` (default: 500)
 
 **Example:** `unhcr_indicator_trends(country_code="SY", start_year=2023)`
 
@@ -228,7 +228,7 @@ Track indicator evolution over time for performance monitoring.
 #### `unhcr_partnership_analysis`
 Analyze partnership levels across activities.
 
-**Parameters:** `country_code`, `max_records` (default: 10000)
+**Parameters:** `country_code`, `max_records` (default: 500)
 
 **Example:** `unhcr_partnership_analysis(country_code="SY")`
 
@@ -237,7 +237,7 @@ Analyze partnership levels across activities.
 #### `unhcr_earmarking_breakdown`
 Get earmarking type breakdown for transactions.
 
-**Parameters:** `year`, `country_code`, `max_records` (default: 10000)
+**Parameters:** `year`, `country_code`, `max_records` (default: 500)
 
 **Example:** `unhcr_earmarking_breakdown(year=2025)`
 
@@ -246,7 +246,7 @@ Get earmarking type breakdown for transactions.
 #### `unhcr_implementing_partners`
 Get main implementing partners by country.
 
-**Parameters:** `country_code`, `top_n` (default: 10), `max_records` (default: 10000)
+**Parameters:** `country_code`, `top_n` (default: 10), `max_records` (default: 500)
 
 **Example:** `unhcr_implementing_partners(country_code="SY", top_n=5)`
 
@@ -268,7 +268,7 @@ Get summary of all 7 core analytical questions.
 #### `unhcr_export_json`
 Export UNHCR data as JSON.
 
-**Parameters:** `collection` (required), `query` (optional), `max_records` (default: 10000)
+**Parameters:** `collection` (required), `query` (optional), `max_records` (default: 500)
 
 **Example:** `unhcr_export_json(collection="activity", max_records=5000)`
 
@@ -277,7 +277,7 @@ Export UNHCR data as JSON.
 #### `unhcr_export_csv`
 Export UNHCR data as CSV.
 
-**Parameters:** `collection` (required), `query` (optional), `max_records` (default: 10000)
+**Parameters:** `collection` (required), `query` (optional), `max_records` (default: 500)
 
 **Example:** `unhcr_export_csv(collection="activity", max_records=5000)`
 
@@ -286,7 +286,7 @@ Export UNHCR data as CSV.
 #### `unhcr_bulk_extract`
 Bulk extract data from multiple IATI collections.
 
-**Parameters:** `collections` (required), `format` (default: "json"), `max_records_per_collection` (default: 10000)
+**Parameters:** `collections` (required), `format` (default: "json"), `max_records_per_collection` (default: 500)
 
 **Example:** `unhcr_bulk_extract(collections=["activity", "transaction"], format="json")`
 

@@ -9,6 +9,7 @@ from unhcr_iati_mcp.context import (
     mcp,
     iati_client,
     unhcr_filter,
+    DEFAULT_MAX_RECORDS,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -21,7 +22,7 @@ logger = get_logger(__name__)
     description="Get sector distribution across UNHCR activities."
 )
 async def unhcr_sector_summary(
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> Dict[str, int]:
     """Get sector distribution across UNHCR activities."""
     try:

@@ -9,6 +9,7 @@ from unhcr_iati_mcp.context import (
     mcp,
     iati_client,
     unhcr_filter,
+    DEFAULT_MAX_RECORDS,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -66,7 +67,7 @@ def _handle_error(error: Exception, tool_name: str) -> Dict[str, Any]:
 )
 async def unhcr_transactions(
     year: int | None = None,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Retrieve all UNHCR transactions, optionally filtered by year."""
     try:
@@ -98,7 +99,7 @@ async def unhcr_transactions(
 )
 async def unhcr_transaction_search(
     query: str,
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> List[Dict[str, Any]]:
     """Search UNHCR transactions with a custom Solr query."""
     try:

@@ -12,6 +12,7 @@ from unhcr_iati_mcp.context import (
     mcp,
     iati_client,
     unhcr_filter,
+    DEFAULT_MAX_RECORDS,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -59,7 +60,7 @@ def _sanitize_solr_query(query: str) -> str:
 async def unhcr_export_json(
     collection: str,
     query: str = "",
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> str:
     """Export UNHCR data as JSON."""
     try:
@@ -90,7 +91,7 @@ async def unhcr_export_json(
 async def unhcr_export_csv(
     collection: str,
     query: str = "",
-    max_records: int = 10000
+    max_records: int = DEFAULT_MAX_RECORDS
 ) -> str:
     """Export UNHCR data as CSV."""
     try:
@@ -135,7 +136,7 @@ async def unhcr_export_csv(
 async def unhcr_bulk_extract(
     collections: List[str],
     format: str = "json",
-    max_records_per_collection: int = 10000
+    max_records_per_collection: int = DEFAULT_MAX_RECORDS
 ) -> Dict[str, Any]:
     """Bulk extract data from multiple IATI collections."""
     results = {}

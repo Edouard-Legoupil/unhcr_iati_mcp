@@ -380,7 +380,7 @@ class ExportRequest(BaseModel):
     collection: str  # activity, transaction, budget
     query: str = "*"  # Solr query
     fields: List[str] = []  # Fields to include
-    max_records: int = 10000
+    max_records: int = 500
 
 class ExportResult(BaseModel):
     format: str  # json, csv
@@ -391,5 +391,5 @@ class ExportResult(BaseModel):
 class BulkExportRequest(BaseModel):
     collections: List[str]
     format: str = "json"
-    max_records_per_collection: int = 10000
+    max_records_per_collection: int = 500
 ```
