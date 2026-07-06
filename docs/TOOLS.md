@@ -10,6 +10,7 @@ This document provides comprehensive documentation for all tools available in th
 4. [Query Syntax Reference](#query-syntax-reference)
 5. [Field Names Reference](#field-names-reference)
 6. [Tips for Effective Queries](#tips-for-effective-queries)
+7. [Context Window Optimization](#context-window-optimization)
 
 ---
 
@@ -56,10 +57,11 @@ The AI assistant understands your intent and automatically:
 | **Sector Analysis** | 3 tools | Analyze activities by humanitarian sector |
 | **SDG Analysis** | 2 tools | Analyze Sustainable Development Goals alignment |
 | **Portfolio** | 2 tools | Get overview and summary statistics |
-| **Export** | 4 tools | Export data in various formats |
-| **Health & Monitoring** | 6 tools | Monitor server and API health |
+| **Export** | 3 tools | Export data in various formats |
+| **Health & Monitoring** | 5 tools | Monitor server and API health |
+| **Code Resolution** | 6 tools | Resolve and validate IATI codes |
 
-**Total: 35 tools**
+**Total: 33 tools**
 
 ---
 
@@ -94,19 +96,10 @@ Filter activities by recipient country code.
 
 ---
 
-#### `unhcr_activity_by_region`
-Filter activities by geographic region.
-
-**Parameters:** `region` (required), `rows` (default: 100)
-
-**Example:** `unhcr_activity_by_region(region="Middle East")`
-
----
-
 #### `unhcr_activity_by_sector`
 Filter activities by sector code.
 
-**Parameters:** `sector_code` (required), `rows` (default: 100)
+**Parameters:** `sector_code` (required), `rows` (default: 100), `start` (default: 0)
 
 **Example:** `unhcr_activity_by_sector(sector_code="12220")` - Health sector
 
@@ -115,18 +108,18 @@ Filter activities by sector code.
 #### `unhcr_activity_by_year`
 Filter activities by year.
 
-**Parameters:** `year` (required), `rows` (default: 100)
+**Parameters:** `year` (required), `max_records` (default: 10000)
 
 **Example:** `unhcr_activity_by_year(year=2024)`
 
 ---
 
-#### `unhcr_activity_search`
-Advanced Solr queries on activities.
+#### `unhcr_activity_by_identifier`
+Filter by IATI identifier components.
 
-**Parameters:** `query` (required), `rows` (default: 10), `start` (default: 0), `fields`, `sort`
+**Parameters:** `year`, `programme`, `country_code`, `operation`, `rows` (default: 100), `start` (default: 0)
 
-**Example:** `unhcr_activity_search(query="recipient_country_code:KE AND sector_code:122*", rows=50)`
+**Example:** `unhcr_activity_by_identifier(year=2024, programme="MENA")`
 
 ---
 
@@ -163,205 +156,237 @@ List all UNHCR budgets.
 
 ### Donor Analysis Tools
 
-#### `unhcr_donors`
-Get information about donors to UNHCR.
-
-**Parameters:** `rows` (default: 50)
-
----
-
 #### `unhcr_top_donors`
 Get top N donors by contribution amount.
 
-**Parameters:** `top_n` (default: 10)
+**Parameters:** `top_n` (default: 20), `max_records` (default: 10000)
 
 **Example:** `unhcr_top_donors(top_n=10)`
 
 ---
 
-#### `unhcr_donor_breakdown`
-Get donor contribution breakdown.
+#### `unhcr_top_donors_by_country`
+Get main donors by country with contribution amounts.
 
-**Parameters:** `year`
+**Parameters:** `country_code`, `top_n` (default: 10), `year`, `max_records` (default: 10000)
 
----
-
-#### `unhcr_donor_trends`
-Analyze donor contribution trends over time.
-
-**Parameters:** `years` (default: 5), `top_n` (default: 10)
+**Example:** `unhcr_top_donors_by_country(country_code="SY", top_n=5)`
 
 ---
 
 ### Country Analysis Tools
 
-#### `unhcr_countries`
-Get information about countries where UNHCR operates.
-
-**Parameters:** `rows` (default: 50)
-
----
-
-#### `unhcr_country_summary`
-Get summary statistics by country.
-
-**Parameters:** `year`
-
----
-
-#### `unhcr_country_financing`
-Get financial information by country.
-
-**Parameters:** `year`
-
----
-
-#### `unhcr_country_dashboard`
-Get comprehensive country dashboard.
-
-**Parameters:** `country_code` (required)
-
-**Example:** `unhcr_country_dashboard(country_code="AF")`
-
----
-
 #### `unhcr_top_countries`
-Get top N countries by activity count or funding.
+Get top N countries by activity count.
 
-**Parameters:** `top_n` (default: 10), `by` ("count" or "value")
+**Parameters:** `top_n` (default: 20), `max_records` (default: 10000)
+
+**Example:** `unhcr_top_countries(top_n=10)`
 
 ---
 
 ### Sector Analysis Tools
 
-#### `unhcr_sectors`
-Get information about humanitarian sectors.
-
-**Parameters:** `rows` (default: 50)
-
----
-
 #### `unhcr_sector_summary`
-Get summary statistics by sector.
+Get sector distribution across UNHCR activities.
 
-**Parameters:** `year`
+**Parameters:** `max_records` (default: 10000)
 
----
-
-#### `unhcr_top_sectors`
-Get top N sectors by activity count or funding.
-
-**Parameters:** `top_n` (default: 10), `by` ("count" or "value")
+**Example:** `unhcr_sector_summary()`
 
 ---
 
-### SDG Analysis Tools
+#### `unhcr_most_funded_sectors`
+Get most funded sectors per country with funding amounts.
 
-#### `unhcr_sdgs`
-Get information about Sustainable Development Goals.
+**Parameters:** `country_code`, `top_n` (default: 10), `year`, `max_records` (default: 10000)
 
-**Parameters:** `rows` (default: 17)
-
----
-
-#### `unhcr_sdg_summary`
-Get summary of UNHCR activities by SDG.
-
-**Parameters:** `year`
+**Example:** `unhcr_most_funded_sectors(country_code="SY", top_n=5)`
 
 ---
 
-### Portfolio Tools
+### Result Framework Tools
 
-#### `unhcr_portfolio_summary`
-Get aggregate counts across all UNHCR data.
+#### `unhcr_budget_vs_expenditure`
+Compare budget vs expenditure for financial tracking.
 
-**Parameters:** None
+**Parameters:** `year`, `country_code`, `max_records` (default: 10000)
+
+**Example:** `unhcr_budget_vs_expenditure(year=2025, country_code="SY")`
+
+---
+
+#### `unhcr_indicator_trends`
+Track indicator evolution over time for performance monitoring.
+
+**Parameters:** `indicator_ref`, `country_code`, `start_year` (default: 2020), `end_year` (default: 2025), `max_records` (default: 10000)
+
+**Example:** `unhcr_indicator_trends(country_code="SY", start_year=2023)`
 
 ---
 
-#### `unhcr_dashboard`
-Get comprehensive portfolio dashboard.
+#### `unhcr_partnership_analysis`
+Analyze partnership levels across activities.
 
-**Parameters:** None
+**Parameters:** `country_code`, `max_records` (default: 10000)
+
+**Example:** `unhcr_partnership_analysis(country_code="SY")`
 
 ---
+
+#### `unhcr_earmarking_breakdown`
+Get earmarking type breakdown for transactions.
+
+**Parameters:** `year`, `country_code`, `max_records` (default: 10000)
+
+**Example:** `unhcr_earmarking_breakdown(year=2025)`
+
+---
+
+#### `unhcr_implementing_partners`
+Get main implementing partners by country.
+
+**Parameters:** `country_code`, `top_n` (default: 10), `max_records` (default: 10000)
+
+**Example:** `unhcr_implementing_partners(country_code="SY", top_n=5)`
+
+---
+
+#### `unhcr_analytical_questions_summary`
+Get summary of all 7 core analytical questions.
+
+**Parameters:** `country_code`, `year`
+
+**Example:** `unhcr_analytical_questions_summary(country_code="SY", year=2024)`
+
+---
+
+
 
 ### Export Tools
 
 #### `unhcr_export_json`
-Export data as JSON.
+Export UNHCR data as JSON.
 
-**Parameters:** `collection` (required), `query` (required), `rows` (default: 1000), `filename`
+**Parameters:** `collection` (required), `query` (optional), `max_records` (default: 10000)
 
-**Example:** `unhcr_export_json(collection="activity", query="reporting_org_ref:XM-DAC-41121", rows=5000)`
+**Example:** `unhcr_export_json(collection="activity", max_records=5000)`
 
 ---
 
 #### `unhcr_export_csv`
-Export data as CSV.
+Export UNHCR data as CSV.
 
-**Parameters:** `collection` (required), `query` (required), `rows` (default: 1000), `fields`
+**Parameters:** `collection` (required), `query` (optional), `max_records` (default: 10000)
 
----
-
-#### `unhcr_export_xml`
-Export data as XML.
-
-**Parameters:** `collection` (required), `query` (required), `rows` (default: 1000)
+**Example:** `unhcr_export_csv(collection="activity", max_records=5000)`
 
 ---
 
 #### `unhcr_bulk_extract`
-Bulk extract from multiple collections.
+Bulk extract data from multiple IATI collections.
 
-**Parameters:** `collections` (required), `format` (required), `query`, `rows` (default: 1000)
+**Parameters:** `collections` (required), `format` (default: "json"), `max_records_per_collection` (default: 10000)
 
-**Example:** `unhcr_bulk_extract(collections="activity,transaction,budget", format="json")`
+**Example:** `unhcr_bulk_extract(collections=["activity", "transaction"], format="json")`
 
 ---
 
 ### Health & Monitoring Tools
 
 #### `health_check`
-Server health status.
+Check the health status of the server.
 
 **Parameters:** None
+
+**Example:** `health_check()`
 
 ---
 
 #### `system_status`
-System component status.
+Check the status of all system components.
 
 **Parameters:** None
+
+**Example:** `system_status()`
 
 ---
 
 #### `datastore_ping`
-Test IATI Datastore connection.
+Test connection to IATI Datastore.
 
 **Parameters:** None
+
+**Example:** `datastore_ping()`
 
 ---
 
 #### `api_limits`
-API rate limit information.
+Get API rate limit information.
 
 **Parameters:** None
+
+**Example:** `api_limits()`
 
 ---
 
 #### `metrics`
-Prometheus metrics endpoint.
+Get Prometheus metrics for the server.
 
 **Parameters:** None
+
+**Example:** `metrics()`
 
 ---
 
-#### `cache_stats`
-Cache statistics.
+### Code Resolution Tools
 
-**Parameters:** None
+Access IATI code lookup tables (41 tables) to resolve codes to human-readable values.
+
+#### `resolve_code`
+Resolve an IATI code to its human-readable name and metadata.
+
+**Parameters:** `code_type` (required), `code` (required), `table` (optional)
+
+**Example:** `resolve_code(code_type="country", code="SYR")` → `{"code": "SYR", "name": "Syrian Arab Republic", ...}`
+
+---
+
+#### `validate_code`
+Validate if an IATI code exists in a code table.
+
+**Parameters:** `code_type` (required), `code` (required), `table` (optional)
+
+**Example:** `validate_code(code_type="sector", code="12220")` → `{"valid": true, "name": "Basic health care"}`
+
+---
+
+#### `search_code_table`
+Search an IATI code table by name or description.
+
+**Parameters:** `code_type` (required), `query` (required), `limit` (default: 20), `table` (optional)
+
+**Example:** `search_code_table(code_type="sector", query="health")` → Finds all health-related sectors
+
+---
+
+#### `list_code_table`
+List all entries in an IATI code table with pagination.
+
+**Parameters:** `code_type` (required), `limit` (default: 100), `offset` (default: 0), `table` (optional)
+
+**Example:** `list_code_table(code_type="country", limit=10)` → First 10 countries
+
+---
+
+#### `batch_resolve_codes`
+Resolve multiple IATI codes in a single call.
+
+**Parameters:** `code_type` (required), `codes` (required), `table` (optional)
+
+**Example:** `batch_resolve_codes(code_type="country", codes=["SYR", "KEN", "ETH"])` → Resolves 3 country codes
+
+**Note:** Code tables are loaded on-demand (lazy loading) and cached for performance. The 41 IATI code tables include: country, sector, organisation, financial, geographic, policy, result framework, and SDG codes.
 
 ---
 
@@ -439,4 +464,33 @@ Cache statistics.
 
 ---
 
-*Last Updated: July 3, 2024*
+## Context Window Optimization
+
+The MCP server has been optimized to minimize context window usage when loading tools:
+
+- **~55K tokens** total for all tool and resource definitions (reduced from ~91K tokens)
+- **33 tools** with concise 1-2 sentence docstrings
+- **17 resources** (reduced from 63 by consolidating code table access)
+
+### Key Optimizations:
+
+1. **Short docstrings**: All tool docstrings reduced from 500-1000+ characters to <100 characters
+2. **Removed redundant resources**: 44 code table resources removed (access via code resolution tools instead)
+3. **Lazy loading**: Code tables load on-demand when first accessed, not at startup
+
+### For Small Context Windows:
+
+If you're using a model with a small context window (32K-64K tokens):
+- Use specific tools by name rather than listing all tools
+- Access code tables via `resolve_code`, `list_code_table`, etc. (not as direct resources)
+- Request smaller result sets using `max_records` parameters
+- Avoid calling `list_tools` or `list_resources` unless necessary
+
+### Available:
+- **Tools**: 33 total (~40K tokens)
+- **Resources**: 17 total (~15K tokens)
+- **Total**: ~55K tokens for definitions, leaving room for conversation
+
+---
+
+*Last Updated: July 6, 2025*

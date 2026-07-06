@@ -169,11 +169,11 @@ All tools are prefixed with `unhcr_` and automatically filter results to UNHCR's
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `unhcr_resolve_code` | Resolve an IATI code to human-readable name | `code_type`, `code`, `table` |
-| `unhcr_validate_code` | Validate if an IATI code exists | `code_type`, `code`, `table` |
-| `unhcr_search_code_table` | Search an IATI code table | `code_type`, `query`, `limit`, `table` |
-| `unhcr_list_code_table` | List all entries in a code table | `code_type`, `limit`, `offset`, `table` |
-| `unhcr_batch_resolve_codes` | Resolve multiple codes in a single call | `code_type`, `codes`, `table` |
+| `resolve_code` | Resolve an IATI code to human-readable name | `code_type`, `code`, `table` |
+| `validate_code` | Validate if an IATI code exists | `code_type`, `code`, `table` |
+| `search_code_table` | Search an IATI code table | `code_type`, `query`, `limit`, `table` |
+| `list_code_table` | List all entries in a code table | `code_type`, `limit`, `offset`, `table` |
+| `batch_resolve_codes` | Resolve multiple codes in a single call | `code_type`, `codes`, `table` |
 
 ## MCP Resources
 
@@ -209,15 +209,30 @@ Static and reference data accessible via MCP resource URIs:
 | `unhcr://result_analysis_guidelines` | Guidelines for correct result data analysis | JSON object |
 | `unhcr://disaggregation_dimensions` | Common disaggregation dimensions (sex, age, disability, etc.) | JSON object |
 
-### Code Tables Resources
+### Code Tables
 
-| URI | Description | Format |
-|-----|-------------|--------|
-| `unhcr://codes/metadata` | Metadata about all 41 IATI code tables | JSON object |
-| `unhcr://codes/available` | List of all available code table names | JSON array |
-| `unhcr://codes/essential` | List of essential (pre-loaded) code tables | JSON array |
-| `unhcr://codes/cache_status` | Current status of the code table cache | JSON object |
-| `unhcr://codes/*` | All 41 IATI code lookup tables | JSON array |
+> **Note:** Code tables are accessed via **Code Resolution Tools** (not as direct MCP resources).
+
+All 41 IATI code lookup tables are available through the code resolution tools:
+
+- **`resolve_code(code_type, code)`** - Resolve a code to human-readable name
+- **`validate_code(code_type, code)`** - Check if a code exists
+- **`list_code_table(code_type)`** - List all entries in a code table
+- **`search_code_table(code_type, query)`** - Search code table by name/description
+- **`batch_resolve_codes(code_type, codes)`** - Resolve multiple codes at once
+
+**Supported code types:**
+- Activity: `activity_status`, `activity_scope`, `activity_date_type`
+- Organisation: `organisation_role`, `organisation_type`, `organisation_identifier`
+- Geographic: `country`, `region`
+- Financial: `aid_type`, `budget`, `flow_type`, `currency`, `earmarking`
+- Sector: `sector`, `sector_category`, `sector_vocabulary`
+- Policy: `policy_marker`, `humanitarian_scope`
+- Result: `result_type`, `indicator_measure`
+- SDG: `sdg_goals`, `sdg_targets`
+- And 20+ more IATI standard code tables
+
+**Note:** Code tables use on-demand (lazy) loading and are cached for performance.
 
 ## Solr Query Syntax
 

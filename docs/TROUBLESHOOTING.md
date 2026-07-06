@@ -14,9 +14,62 @@ This document provides comprehensive troubleshooting guidance for the UNHCR IATI
 | Empty results | Incorrect filter | Check `UNHCR_PUBLISHER_REF` is set to `XM-DAC-41121` |
 | Sector aggregation errors | Mixing vocabularies | Use `get_sectors_by_vocabulary()` to group by vocabulary first |
 | Result framework parsing | Missing result fields | Use Activity model's `get_results_with_indicators()` method |
-| Code table not found | Table not in data/codelists/ | Check available tables with `unhcr://codes/available` |
-| Cache issues | Stale code table data | Use `reload_code_tables()` or restart server |
+| Code table not found | Table not in data/codelists/ | Use `list_code_table(code_type="country")` to check available code types |
+| Cache issues | Stale code table data | Code tables load on-demand; restart server to clear cache |
 | Invalid indicator data | Non-numeric values for quantitative | Use `validate_indicator_data()` to check data quality |
+| Context window exceeded | Too many tools/resources loaded | Use specific tools instead of listing all; see Context Window section below |
+
+## Context Window Issues
+
+### Symptom
+Error: "The conversation context exceeds the model's maximum limit" when loading tools from the MCP server.
+
+### Cause
+The MCP server's tool and resource definitions consume context window space. With the current optimization:
+- **33 tools** + **17 resources** = ~55K tokens total
+- This fits within 64K+ context windows but may exceed 32K windows
+
+### Solutions
+
+1. **Use specific tools** instead of listing all:
+   ```python
+   # Instead of:
+   tools = await client.list_tools()
+   
+   # Use specific tool directly:
+   result = await client.call_tool("unhcr_activities", {"rows": 10})
+   ```
+
+2. **Access code tables via tools** (not as resources):
+   ```python
+   # Instead of:
+   resource = await client.read_resource("unhcr://codes/country")
+   
+   # Use:
+   result = await client.call_tool("resolve_code", {
+       "code_type": "country",
+       "code": "SYR"
+   })
+   ```
+
+3. **Request smaller result sets**:
+   ```python
+   # Use max_records parameter
+   result = await client.call_tool("unhcr_activities", {
+       "rows": 100,  # or max_records
+       "start": 0
+   })
+   ```
+
+4. **Use models with larger context windows** (64K+ recommended)
+
+### Optimization Details
+
+The server has been optimized to reduce context window usage:
+- **Shortened docstrings**: From 500-1000+ chars to <100 chars
+- **Removed 44 code table resources**: Access via code resolution tools instead
+- **Lazy loading**: Code tables load on-demand, not at startup
+- **Result**: ~55K tokens (down from ~91K)
 
 ## Debug Mode
 

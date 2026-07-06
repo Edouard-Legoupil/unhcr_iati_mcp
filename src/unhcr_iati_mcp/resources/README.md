@@ -19,9 +19,18 @@ Resources = provide context, reference data, metadata, schemas, documentation, d
 - `unhcr://result_analysis_guidelines` - Comprehensive guidelines for correct result data analysis
 - `unhcr://disaggregation_dimensions` - Metadata about common disaggregation dimensions (sex, age, disability, etc.)
 
-### Code Tables (code_tables.py)
-- 41 IATI code lookup tables from .arc/R-analysis/ as MCP resources
-- Includes: sector, sector_category, sector_vocabulary, country, region, aid_type, etc.
+### Code Tables
+**NOTE: Code tables are NOT registered as MCP resources to reduce context window usage.**
+
+Access code tables via the **code_resolution.py tools**:
+- `resolve_code(code_type, code)` - Resolve codes to human-readable values
+- `validate_code(code_type, code)` - Validate code existence
+- `list_code_table(code_type)` - List all entries in a code table
+- `search_code_table(code_type, query)` - Search code tables
+- `batch_resolve_codes(code_type, codes)` - Batch resolve multiple codes
+
+All 41 IATI code lookup tables are available and loaded on-demand (lazy loading).
+Includes: sector, sector_category, sector_vocabulary, country, region, aid_type, etc.
 
 ### Other Resources
 - `unhcr://countries` - Country metadata

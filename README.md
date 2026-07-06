@@ -34,7 +34,7 @@ Complete support for IATI's hierarchical result framework with **16 UNHCR Operat
 
 ### ✅ Comprehensive Code Tables
 
-All **41 IATI code lookup tables** are embedded in the package with lazy loading and caching for optimal performance.
+All **41 IATI code lookup tables** are embedded in the package with on-demand loading and caching for optimal performance. Access via code resolution tools (`resolve_code`, `list_code_table`, etc.) rather than direct MCP resources.
 
 ## Quick Start
 
@@ -102,7 +102,7 @@ The server exposes tools and resources via the Model Context Protocol (MCP).
 - `unhcr://sectors`, `unhcr://countries`, `unhcr://donors`
 - `unhcr://sector_vocabularies`, `unhcr://sector_analysis_guidelines`
 - `unhcr://result_types`, `unhcr://indicator_measures`, `unhcr://result_areas`
-- `unhcr://codes/*` (all 41 IATI code lookup tables)
+- `unhcr://glossary`, `unhcr://portfolio`, `unhcr://schemas`, `unhcr://sdgs`
 
 ### Example Usage
 
@@ -216,10 +216,37 @@ The server supports the complete IATI result framework:
 
 ### Code Tables
 
-All 41 IATI code lookup tables are available as MCP resources:
+All 41 IATI code lookup tables are available through **code resolution tools** (not as direct MCP resources):
 - Activity codes, Organisation codes, Geographic codes
 - Financial codes, Sector codes, Policy codes
 - Result codes, SDG codes
+
+Use the following tools to access code tables:
+- `resolve_code(code_type, code)` - Resolve a code to human-readable name
+- `validate_code(code_type, code)` - Check if a code exists
+- `list_code_table(code_type)` - List all entries in a code table
+- `search_code_table(code_type, query)` - Search code table by name/description
+- `batch_resolve_codes(code_type, codes)` - Resolve multiple codes at once
+
+Note: Code tables are loaded on-demand (lazy loading) and cached for performance.
+
+## Performance & Optimization
+
+### Context Window Management
+
+The MCP server has been optimized to minimize context window usage:
+
+- **~55K tokens** total for all tool and resource definitions (down from ~91K)
+- **33 tools** with concise docstrings
+- **17 resources** (reduced from 63 by removing redundant code table resources)
+- **Lazy loading** of code tables (loaded on-demand, not at startup)
+
+This ensures compatibility with models having 32K-128K token context windows.
+
+For models with smaller context windows:
+- Use specific tools rather than listing all tools
+- Access code tables via `resolve_code`, `list_code_table` tools rather than direct resources
+- Request smaller result sets with `max_records` parameters
 
 ## Resources
 
