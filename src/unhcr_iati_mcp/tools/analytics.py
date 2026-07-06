@@ -21,6 +21,8 @@ from unhcr_iati_mcp.context import (
     mcp,
     iati_client,
     unhcr_filter,
+    parse_unhcr_identifier,
+    PROGRAMME_LABELS,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -76,116 +78,7 @@ def _safe_get_str(data: Dict, key: str) -> str:
 #   XM-DAC-41121-2024-MENA-SYR        -> Syria country operation under MENA, year 2024
 #   XM-DAC-41121-2024-GLOBALPROG      -> Global Program, year 2024
 
-# Programme code to label mapping
-PROGRAMME_LABELS = {
-    "AFR": "Africa",
-    "AME": "The Americas",
-    "ASO": "Asia and the Pacific",
-    "EHGL": "East and Horn of Africa",
-    "EUR": "Europe",
-    "GLOBALPROG": "Global Program",
-    "HQ": "Head Quarter",
-    "JPO": "Junior Professional Officer",
-    "MENA": "Middle East and North Africa",
-    "SA": "Southern Africa",
-    "SAO": "Southern Africa",
-    "WCA": "West and Central Africa",
-}
-
-
-def parse_unhcr_identifier(iati_identifier: str) -> Dict[str, Any]:
-    """
-    Parse UNHCR IATI identifier to extract year, region, programme, country, and operation type.
-    
-    This replicates the R code logic from the original analysis framework.
-    
-    Args:
-        iati_identifier: The IATI identifier string (e.g., "XM-DAC-41121-2024-MENA-SYR")
-        
-    Returns:
-        Dictionary containing:
-        - iati_identifier_year_reg_ops: Full identifier without XM-DAC-41121- prefix
-        - year: Extracted year as integer (or None)
-        - programme: Programme code (e.g., "MENA", "HQ", "GLOBALPROG")
-        - programme_label: Human-readable programme name
-        - iati_identifier_ops: Operation/country part (e.g., "SYR")
-        - iso3c: ISO3 country code (or empty string)
-        - ops_type: Operation type (or empty string)
-        - is_operation: Boolean indicating if this is an operation (has "-" separator)
-    """
-    if not iati_identifier:
-        return {
-            "iati_identifier_year_reg_ops": "",
-            "year": None,
-            "programme": "",
-            "programme_label": "",
-            "iati_identifier_ops": "",
-            "iso3c": "",
-            "ops_type": "",
-            "is_operation": False,
-        }
-    
-    # Remove XM-DAC-41121- prefix
-    prefix = "XM-DAC-41121-"
-    if iati_identifier.startswith(prefix):
-        year_reg_ops = iati_identifier[len(prefix):]
-    else:
-        year_reg_ops = iati_identifier
-    
-    # Extract year (first 4 characters)
-    year = None
-    if len(year_reg_ops) >= 4:
-        year_str = year_reg_ops[:4]
-        try:
-            year = int(year_str)
-        except ValueError:
-            pass
-    
-    # Extract region/operation part (after year and dash)
-    if len(year_reg_ops) > 5:
-        reg_ops = year_reg_ops[5:]  # Skip year (4 chars) and dash (1 char)
-    else:
-        reg_ops = ""
-    
-    # Check if it's an operation (contains "-")
-    is_operation = "-" in reg_ops
-    sep = reg_ops.find("-") if is_operation else -1
-    
-    # Extract programme
-    if is_operation and sep > 0:
-        programme = reg_ops[:sep]
-    else:
-        programme = reg_ops
-    
-    # Map programme code to label
-    programme_label = PROGRAMME_LABELS.get(programme, programme)
-    
-    # Extract operation part (after separator)
-    if is_operation and sep >= 0:
-        iati_identifier_ops = reg_ops[sep + 1:]
-    else:
-        iati_identifier_ops = ""
-    
-    # Extract ISO3 country code (first 3 characters of operation part)
-    iso3c = ""
-    if len(iati_identifier_ops) >= 3:
-        iso3c = iati_identifier_ops[:3]
-    
-    # Extract operation type (after country code, if longer than 3 chars)
-    ops_type = ""
-    if len(iati_identifier_ops) > 3:
-        ops_type = iati_identifier_ops[4:]  # Skip "-" and 3-char country code
-    
-    return {
-        "iati_identifier_year_reg_ops": year_reg_ops,
-        "year": year,
-        "programme": programme,
-        "programme_label": programme_label,
-        "iati_identifier_ops": iati_identifier_ops,
-        "iso3c": iso3c,
-        "ops_type": ops_type,
-        "is_operation": is_operation,
-    }
+# Note: parse_unhcr_identifier and PROGRAMME_LABELS are imported from context module
 
 
 # =============================================================================

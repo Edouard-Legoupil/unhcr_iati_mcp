@@ -8,6 +8,8 @@ from unhcr_iati_mcp.context import (
     mcp,
     iati_client,
     unhcr_filter,
+    unhcr_identifier_filter,
+    parse_unhcr_identifier,
 )
 from unhcr_iati_mcp.client import IATIError
 from unhcr_iati_mcp.observability.logging import get_logger
@@ -59,7 +61,7 @@ async def unhcr_activities(
 
 @mcp.tool(
     name="unhcr_activity",
-    description="Retrieve a specific UNHCR activity by IATI identifier."
+    description="Retrieve a specific UNHCR activity by IATI identifier or identifier pattern."
 )
 async def unhcr_activity(
     iati_identifier: str
@@ -67,17 +69,32 @@ async def unhcr_activity(
     """
     Retrieve a specific activity by its IATI identifier.
     
+    This tool supports both full IATI identifiers and partial patterns.
+    It uses the iati_identifier_exact field with wildcard matching for better results.
+    
     Args:
-        iati_identifier: The unique IATI identifier for the activity
+        iati_identifier: The IATI identifier for the activity. Can be:
+            - Full identifier: "XM-DAC-41121-2024-MENA-SYR"
+            - Partial pattern: "XM-DAC-41121-2024-MENA" (matches all MENA activities in 2024)
+            - Year only: "XM-DAC-41121-2024" (matches all activities in 2024)
         
     Returns:
         Dictionary containing the activity data or error information
     """
     try:
-        q = (
-            f'{unhcr_filter()} '
-            f'AND iati_identifier:"{iati_identifier}"'
+        # Parse the identifier to extract components
+        parsed = parse_unhcr_identifier(iati_identifier)
+        
+        # Build the filter using the parsed components
+        identifier_filter = unhcr_identifier_filter(
+            year=parsed.get("year"),
+            programme=parsed.get("programme") if parsed.get("programme") else None,
+            country_code=parsed.get("iso3c") if parsed.get("iso3c") else None,
+            operation=parsed.get("ops_type") if parsed.get("ops_type") else None,
         )
+        
+        # Combine with UNHCR publisher filter
+        q = f'{unhcr_filter()} AND {identifier_filter}'
 
         return await iati_client.query(
             collection="activity",
@@ -203,3 +220,72 @@ async def unhcr_activity_by_year(
     except Exception as e:
         logger.exception("Unexpected error in unhcr_activity_by_year")
         return []
+
+
+@mcp.tool(
+    name="unhcr_activity_by_identifier",
+    description="Retrieve UNHCR activities filtered by IATI identifier components."
+)
+async def unhcr_activity_by_identifier(
+    year: int | None = None,
+    programme: str | None = None,
+    country_code: str | None = None,
+    operation: str | None = None,
+    rows: int = 100,
+    start: int = 0
+) -> Dict[str, Any]:
+    """
+    Retrieve UNHCR activities filtered by IATI identifier components.
+    
+    This tool provides flexible filtering using the UNHCR IATI identifier structure:
+    XM-DAC-41121-{YEAR}-{PROGRAMME}[-{COUNTRY}[-{OPERATION}]]
+    
+    It uses the iati_identifier_exact field with wildcard matching for precise results.
+    
+    Args:
+        year: Optional year to filter by (e.g., 2024)
+        programme: Optional programme code (e.g., "MENA", "AFR", "HQ", "GLOBALPROG")
+        country_code: Optional ISO3 country code (e.g., "SYR", "ETH")
+        operation: Optional operation code (e.g., "USARO", "CRIRLU")
+        rows: Number of results to return per page (default: 100)
+        start: Starting offset for pagination (default: 0)
+        
+    Returns:
+        Dictionary containing IATI Datastore response with filtered activities
+        or error information if the request fails
+        
+    Examples:
+        # Filter for 2024 activities
+        unhcr_activity_by_identifier(year=2024)
+        
+        # Filter for MENA region
+        unhcr_activity_by_identifier(programme="MENA")
+        
+        # Filter for Syria country operations
+        unhcr_activity_by_identifier(country_code="SYR")
+        
+        # Filter for MENA region, Syria, 2024
+        unhcr_activity_by_identifier(year=2024, programme="MENA", country_code="SYR")
+    """
+    try:
+        # Build the identifier filter
+        identifier_filter = unhcr_identifier_filter(
+            year=year,
+            programme=programme,
+            country_code=country_code,
+            operation=operation
+        )
+        
+        # Combine with UNHCR publisher filter
+        q = f'{unhcr_filter()} AND {identifier_filter}'
+
+        return await iati_client.query(
+            collection="activity",
+            q=q,
+            rows=rows,
+            start=start
+        )
+    except IATIError as e:
+        return _handle_error(e, "unhcr_activity_by_identifier")
+    except Exception as e:
+        return _handle_error(e, "unhcr_activity_by_identifier")
