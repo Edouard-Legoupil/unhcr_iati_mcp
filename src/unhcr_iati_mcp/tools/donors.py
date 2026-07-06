@@ -34,17 +34,7 @@ async def unhcr_top_donors(
     top_n: int = 20,
     max_records: int = 10000
 ) -> List[Tuple[str, float]]:
-    """
-    Retrieve and rank donors by their total contribution amount.
-    
-    Args:
-        top_n: Number of top donors to return (default: 20)
-        max_records: Maximum number of transactions to process (default: 10000)
-        
-    Returns:
-        List of tuples containing (donor_name, total_amount) sorted by amount descending
-        or empty list on error
-    """
+    """Get top N donors by contribution amount."""
     try:
         tx = await iati_client.fetch_all(
             collection="transaction",

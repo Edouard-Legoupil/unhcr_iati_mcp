@@ -8,4 +8,5 @@ from . import donors
 from . import glossary
 from . import portfolio
 from . import schemas
-from . import code_tables
+# from . import code_tables  # Removed to reduce context window usage - 44 code table resources
+# These are redundant with code_resolution tools (resolve_code, list_code_table, etc.)

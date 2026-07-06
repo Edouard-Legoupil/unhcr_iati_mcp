@@ -20,12 +20,7 @@ logger = get_logger(__name__)
     description="Get Prometheus metrics for the server."
 )
 async def metrics() -> Dict[str, str]:
-    """
-    Retrieve Prometheus metrics from the server.
-    
-    Returns:
-        Dictionary containing Prometheus metrics
-    """
+    """Get Prometheus metrics for the server."""
     try:
         # Import here to avoid circular imports
         from unhcr_iati_mcp.observability.metrics import prometheus_metrics
@@ -46,12 +41,7 @@ async def metrics() -> Dict[str, str]:
     description="Check the health status of the server."
 )
 async def health_check() -> Dict[str, str]:
-    """
-    Perform a health check on the server.
-    
-    Returns:
-        Dictionary containing health status information
-    """
+    """Check the health status of the server."""
     return {
         "status": "healthy",
         "service": "UNHCR IATI MCP",
@@ -64,12 +54,7 @@ async def health_check() -> Dict[str, str]:
     description="Check the status of all system components."
 )
 async def system_status() -> Dict[str, str]:
-    """
-    Check the status of system components.
-    
-    Returns:
-        Dictionary containing status of each component
-    """
+    """Check the status of all system components."""
     return {
         "api": "up",
         "version": "1.0.0"
@@ -81,12 +66,7 @@ async def system_status() -> Dict[str, str]:
     description="Test connection to IATI Datastore."
 )
 async def datastore_ping() -> Dict[str, Any]:
-    """
-    Test the connection to the IATI Datastore API.
-    
-    Returns:
-        Dictionary containing connection status
-    """
+    """Test connection to IATI Datastore."""
     try:
         await iati_client.query(
             "activity",
@@ -119,15 +99,7 @@ async def datastore_ping() -> Dict[str, Any]:
     description="Get API rate limit information."
 )
 async def api_limits() -> Dict[str, Any]:
-    """
-    Get rate limit information for the IATI Datastore API.
-    
-    Note: IATI Datastore doesn't provide rate limit headers in its API.
-    This is a placeholder for future implementation.
-    
-    Returns:
-        Dictionary containing rate limit information
-    """
+    """Get API rate limit information."""
     return {
         "rate_limit": "unknown",
         "remaining_requests": "unknown",

@@ -68,16 +68,7 @@ async def unhcr_transactions(
     year: int | None = None,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Retrieve all UNHCR transactions.
-    
-    Args:
-        year: Optional year to filter transactions by
-        max_records: Maximum number of records to return (default: 10000)
-        
-    Returns:
-        List of transaction dictionaries or empty list on error
-    """
+    """Retrieve all UNHCR transactions, optionally filtered by year."""
     try:
         q = unhcr_filter()
 
@@ -109,16 +100,7 @@ async def unhcr_transaction_search(
     query: str,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Search transactions using a custom Solr query string.
-    
-    Args:
-        query: Solr query string (will be combined with UNHCR filter)
-        max_records: Maximum number of records to return (default: 10000)
-        
-    Returns:
-        List of transaction dictionaries matching the query or empty list on error
-    """
+    """Search UNHCR transactions with a custom Solr query."""
     try:
         # Sanitize user query to prevent Solr injection
         sanitized_query = _sanitize_solr_query(query)

@@ -35,17 +35,7 @@ async def unhcr_activities(
     rows: int = 100,
     start: int = 0
 ) -> Dict[str, Any]:
-    """
-    Retrieve UNHCR activities from IATI Datastore.
-    
-    Args:
-        rows: Number of results to return per page (default: 100)
-        start: Starting offset for pagination (default: 0)
-        
-    Returns:
-        Dictionary containing IATI Datastore response with activities
-        or error information if the request fails
-    """
+    """Retrieve UNHCR activities with pagination."""
     try:
         return await iati_client.query(
             collection="activity",
@@ -66,21 +56,7 @@ async def unhcr_activities(
 async def unhcr_activity(
     iati_identifier: str
 ) -> Dict[str, Any]:
-    """
-    Retrieve a specific activity by its IATI identifier.
-    
-    This tool supports both full IATI identifiers and partial patterns.
-    It uses the iati_identifier_exact field with wildcard matching for better results.
-    
-    Args:
-        iati_identifier: The IATI identifier for the activity. Can be:
-            - Full identifier: "XM-DAC-41121-2024-MENA-SYR"
-            - Partial pattern: "XM-DAC-41121-2024-MENA" (matches all MENA activities in 2024)
-            - Year only: "XM-DAC-41121-2024" (matches all activities in 2024)
-        
-    Returns:
-        Dictionary containing the activity data or error information
-    """
+    """Retrieve a specific UNHCR activity by IATI identifier or identifier pattern."""
     try:
         # Parse the identifier to extract components
         parsed = parse_unhcr_identifier(iati_identifier)
@@ -116,17 +92,7 @@ async def unhcr_activity_by_country(
     rows: int = 100,
     start: int = 0
 ) -> Dict[str, Any]:
-    """
-    Retrieve activities for a specific country.
-    
-    Args:
-        country_code: ISO 2-letter or 3-letter country code
-        rows: Number of results to return (default: 100)
-        start: Starting offset for pagination (default: 0)
-        
-    Returns:
-        Dictionary containing activities for the specified country or error information
-    """
+    """Retrieve UNHCR activities filtered by country code."""
     try:
         q = (
             f'{unhcr_filter()} '
@@ -154,17 +120,7 @@ async def unhcr_activity_by_sector(
     rows: int = 100,
     start: int = 0
 ) -> Dict[str, Any]:
-    """
-    Retrieve activities for a specific sector.
-    
-    Args:
-        sector_code: IATI sector code (e.g., "1", "2", "3")
-        rows: Number of results to return (default: 100)
-        start: Starting offset for pagination (default: 0)
-        
-    Returns:
-        Dictionary containing activities for the specified sector or error information
-    """
+    """Retrieve UNHCR activities filtered by sector code."""
     try:
         q = (
             f'{unhcr_filter()} '
@@ -191,16 +147,7 @@ async def unhcr_activity_by_year(
     year: int,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Retrieve all activities for a specific year.
-    
-    Args:
-        year: The year to filter activities by
-        max_records: Maximum number of records to return (default: 10000)
-        
-    Returns:
-        List of activity dictionaries or empty list on error
-    """
+    """Retrieve UNHCR activities for a specific year."""
     try:
         q = (
             f'{unhcr_filter()} '
@@ -234,39 +181,7 @@ async def unhcr_activity_by_identifier(
     rows: int = 100,
     start: int = 0
 ) -> Dict[str, Any]:
-    """
-    Retrieve UNHCR activities filtered by IATI identifier components.
-    
-    This tool provides flexible filtering using the UNHCR IATI identifier structure:
-    XM-DAC-41121-{YEAR}-{PROGRAMME}[-{COUNTRY}[-{OPERATION}]]
-    
-    It uses the iati_identifier_exact field with wildcard matching for precise results.
-    
-    Args:
-        year: Optional year to filter by (e.g., 2024)
-        programme: Optional programme code (e.g., "MENA", "AFR", "HQ", "GLOBALPROG")
-        country_code: Optional ISO3 country code (e.g., "SYR", "ETH")
-        operation: Optional operation code (e.g., "USARO", "CRIRLU")
-        rows: Number of results to return per page (default: 100)
-        start: Starting offset for pagination (default: 0)
-        
-    Returns:
-        Dictionary containing IATI Datastore response with filtered activities
-        or error information if the request fails
-        
-    Examples:
-        # Filter for 2024 activities
-        unhcr_activity_by_identifier(year=2024)
-        
-        # Filter for MENA region
-        unhcr_activity_by_identifier(programme="MENA")
-        
-        # Filter for Syria country operations
-        unhcr_activity_by_identifier(country_code="SYR")
-        
-        # Filter for MENA region, Syria, 2024
-        unhcr_activity_by_identifier(year=2024, programme="MENA", country_code="SYR")
-    """
+    """Retrieve UNHCR activities filtered by IATI identifier components."""
     try:
         # Build the identifier filter
         identifier_filter = unhcr_identifier_filter(

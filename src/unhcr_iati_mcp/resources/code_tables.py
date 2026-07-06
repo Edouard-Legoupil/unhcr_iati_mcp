@@ -174,13 +174,11 @@ def _load_code_table(filename: str) -> List[Dict[str, Any]]:
         raise ValueError(f"Failed to load code table '{filename}': {e}")
 
 
-# Pre-load essential tables at module import time
-# Use a try-except to handle cases where tables might not be available
-for table in ESSENTIAL_TABLES:
-    try:
-        _load_code_table(table)
-    except (FileNotFoundError, ValueError) as e:
-        logger.warning(f"Could not pre-load essential table '{table}': {e}")
+# Code tables are loaded on-demand when resources are accessed to reduce startup
+# time and memory usage. Pre-loading was removed to avoid context window issues.
+# Essential tables: codeCountry, codeRegion, codeSector, codeSectorCategory,
+# codeSectorVocabulary, codeOrganisationRole, codeOrganisationType, codeActivityStatus,
+# codeActivityScope, codeActivityDateType, codeAidType, codeFlowType, codePolicyMarker
 
 
 # Add a function to clear and reload the cache

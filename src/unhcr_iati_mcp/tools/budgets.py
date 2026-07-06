@@ -33,16 +33,7 @@ async def unhcr_budgets(
     year: int | None = None,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Retrieve all UNHCR budgets.
-    
-    Args:
-        year: Optional year to filter budgets by
-        max_records: Maximum number of records to return (default: 10000)
-        
-    Returns:
-        List of budget dictionaries or empty list on error
-    """
+    """Retrieve all UNHCR budgets, optionally filtered by year."""
     try:
         q = unhcr_filter()
 

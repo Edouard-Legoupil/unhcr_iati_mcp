@@ -61,17 +61,7 @@ async def unhcr_export_json(
     query: str = "",
     max_records: int = 10000
 ) -> str:
-    """
-    Export data from a collection as JSON.
-    
-    Args:
-        collection: The IATI Datastore collection to export (activity, transaction, budget)
-        query: Optional additional Solr query filter
-        max_records: Maximum number of records to export (default: 10000)
-        
-    Returns:
-        JSON string containing the exported data or error message
-    """
+    """Export UNHCR data as JSON."""
     try:
         sanitized_query = _sanitize_solr_query(query) if query else ""
         if sanitized_query:
@@ -102,17 +92,7 @@ async def unhcr_export_csv(
     query: str = "",
     max_records: int = 10000
 ) -> str:
-    """
-    Export data from a collection as CSV.
-    
-    Args:
-        collection: The IATI Datastore collection to export (activity, transaction, budget)
-        query: Optional additional Solr query filter
-        max_records: Maximum number of records to export (default: 10000)
-        
-    Returns:
-        CSV string containing the exported data or error message
-    """
+    """Export UNHCR data as CSV."""
     try:
         sanitized_query = _sanitize_solr_query(query) if query else ""
         if sanitized_query:
@@ -157,17 +137,7 @@ async def unhcr_bulk_extract(
     format: str = "json",
     max_records_per_collection: int = 10000
 ) -> Dict[str, Any]:
-    """
-    Bulk extract data from multiple collections.
-    
-    Args:
-        collections: List of collection names to extract
-        format: Output format (json or csv)
-        max_records_per_collection: Maximum records per collection (default: 10000)
-        
-    Returns:
-        Dictionary mapping collection names to extracted data or error information
-    """
+    """Bulk extract data from multiple IATI collections."""
     results = {}
     
     for collection in collections:

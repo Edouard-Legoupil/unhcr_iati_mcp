@@ -197,34 +197,7 @@ async def resolve_code(
     code: str,
     table: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Resolve an IATI code to its human-readable name and metadata.
-    
-    This tool translates raw IATI codes (e.g., "SYR", "12220", "2") into
-    human-readable values (e.g., "Syrian Arab Republic", "Basic health care", "Implementing").
-    
-    Args:
-        code_type: The type of code to resolve. Can be:
-            - A table name (e.g., "country", "sector", "activity_status")
-            - A full filename (e.g., "codeCountry", "codeSector")
-            - Common aliases (e.g., "org", "financial", "policy")
-        code: The code value to resolve (e.g., "SYR", "12220", "2")
-        table: Optional explicit table name to use (overrides code_type)
-    
-    Returns:
-        Dictionary containing:
-        - code: The original code
-        - name: Human-readable name (if found)
-        - description: Description (if available)
-        - table: Table name used for resolution
-        - found: Boolean indicating if code was found
-        - metadata: Full entry from code table (if found)
-    
-    Examples:
-        resolve_code("country", "SYR") → {"code": "SYR", "name": "Syrian Arab Republic", ...}
-        resolve_code("sector", "12220") → {"code": "12220", "name": "Basic health care", ...}
-        resolve_code("activity", "2") → {"code": "2", "name": "Implementation", ...}
-    """
+    """Resolve an IATI code to its human-readable name and metadata."""
     try:
         # Determine which table to use
         if table:
@@ -306,28 +279,7 @@ async def validate_code(
     code: str,
     table: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Validate if an IATI code exists in a code table.
-    
-    This is a lightweight version of resolve_code that only checks existence.
-    
-    Args:
-        code_type: The type of code to validate
-        code: The code value to validate
-        table: Optional explicit table name to use
-    
-    Returns:
-        Dictionary containing:
-        - code: The code being validated
-        - code_type: The code type
-        - table: Table name used
-        - valid: Boolean indicating if code exists
-        - name: Human-readable name if valid
-    
-    Examples:
-        validate_code("country", "SYR") → {"valid": True, "name": "Syrian Arab Republic"}
-        validate_code("sector", "99999") → {"valid": False}
-    """
+    """Validate if an IATI code exists in a code table."""
     try:
         if table:
             table_name = table
@@ -389,30 +341,7 @@ async def search_code_table(
     limit: int = 20,
     table: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Search an IATI code table by name or description.
-    
-    This tool allows fuzzy matching on code table entries, useful when you
-    know the name but not the code, or want to find all entries matching a term.
-    
-    Args:
-        code_type: The type of code table to search
-        query: Search term (case-insensitive, matches on name and description)
-        limit: Maximum number of results to return (default: 20)
-        table: Optional explicit table name to use
-    
-    Returns:
-        Dictionary containing:
-        - query: The search query
-        - table: Table name searched
-        - results: List of matching entries
-        - count: Total number of matches
-        - limit: Results limit
-    
-    Examples:
-        search_code_table("sector", "health") → Finds all health-related sectors
-        search_code_table("country", "syria") → Finds Syria entries
-    """
+    """Search an IATI code table by name or description."""
     try:
         if table:
             table_name = table
@@ -475,29 +404,7 @@ async def list_code_table(
     offset: int = 0,
     table: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    List all entries in an IATI code table with pagination.
-    
-    This is useful for browsing code tables or getting all values.
-    
-    Args:
-        code_type: The type of code table to list
-        limit: Maximum number of entries to return (default: 100)
-        offset: Starting index for pagination (default: 0)
-        table: Optional explicit table name to use
-    
-    Returns:
-        Dictionary containing:
-        - table: Table name
-        - entries: List of code entries
-        - total: Total number of entries in table
-        - limit: Requested limit
-        - offset: Requested offset
-    
-    Examples:
-        list_code_table("country", limit=10) → First 10 countries
-        list_code_table("sector", limit=50, offset=50) → Sectors 51-100
-    """
+    """List all entries in an IATI code table."""
     try:
         if table:
             table_name = table
@@ -548,27 +455,7 @@ async def batch_resolve_codes(
     codes: List[str],
     table: Optional[str] = None
 ) -> Dict[str, Any]:
-    """
-    Resolve multiple IATI codes in a single call.
-    
-    This is more efficient than calling resolve_code multiple times.
-    
-    Args:
-        code_type: The type of codes to resolve
-        codes: List of code values to resolve
-        table: Optional explicit table name to use
-    
-    Returns:
-        Dictionary containing:
-        - code_type: The code type
-        - table: Table name used
-        - results: List of resolution results (one per input code)
-        - resolved: Count of successfully resolved codes
-        - unresolved: Count of codes not found
-    
-    Examples:
-        batch_resolve_codes("country", ["SYR", "KEN", "XX"]) → Resolves 3 country codes
-    """
+    """Resolve multiple IATI codes in a single call."""
     try:
         if table:
             table_name = table

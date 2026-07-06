@@ -23,16 +23,7 @@ logger = get_logger(__name__)
 async def unhcr_sector_summary(
     max_records: int = 10000
 ) -> Dict[str, int]:
-    """
-    Retrieve and count activities by sector code.
-    
-    Args:
-        max_records: Maximum number of activities to process (default: 10000)
-        
-    Returns:
-        Dictionary mapping sector codes to activity counts
-        or empty dict on error
-    """
+    """Get sector distribution across UNHCR activities."""
     try:
         activities = await iati_client.fetch_all(
             collection="activity",

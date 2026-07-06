@@ -95,34 +95,7 @@ async def unhcr_most_funded_sectors(
     year: Optional[int] = None,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Most Funded Sectors per Country.
-    
-    **Purpose:** Understand priority areas and resource allocation
-    
-    **Question 1 of 7 Core Analytical Questions**
-    
-    This tool aggregates transaction values by sector for a specific country
-    (or all countries if not specified) and returns the top N sectors.
-    
-    Args:
-        country_code: ISO 2-letter country code (e.g., "SY", "KEN"). 
-                     If None, returns sectors across all countries.
-        top_n: Number of top sectors to return (default: 10)
-        year: Optional year filter
-        max_records: Maximum number of transactions to process (default: 10000)
-    
-    Returns:
-        List of dictionaries containing:
-        - sector_code: IATI sector code
-        - sector_name: Human-readable sector name (if resolvable)
-        - total_value: Total funding amount in USD
-        - transaction_count: Number of transactions
-        - percentage: Percentage of total funding
-    
-    Example:
-        unhcr_most_funded_sectors(country_code="SY", top_n=5)
-    """
+    """Get most funded sectors per country with funding amounts."""
     try:
         # Build query
         q = unhcr_filter()
@@ -195,33 +168,7 @@ async def unhcr_top_donors_by_country(
     year: Optional[int] = None,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Main Donors by Country.
-    
-    **Purpose:** Identify funding sources and partnerships
-    
-    **Question 2 of 7 Core Analytical Questions**
-    
-    This tool aggregates transaction values by donor for a specific country
-    (or all countries if not specified) and returns the top N donors.
-    
-    Args:
-        country_code: ISO 2-letter country code (e.g., "SY", "KEN")
-        top_n: Number of top donors to return (default: 10)
-        year: Optional year filter
-        max_records: Maximum number of transactions to process (default: 10000)
-    
-    Returns:
-        List of dictionaries containing:
-        - donor_ref: Donor organization reference
-        - donor_name: Donor organization name
-        - total_value: Total contribution amount in USD
-        - transaction_count: Number of transactions
-        - percentage: Percentage of total contributions
-    
-    Example:
-        unhcr_top_donors_by_country(country_code="SY", top_n=5)
-    """
+    """Get main donors by country with contribution amounts."""
     try:
         # Build query
         q = unhcr_filter()
@@ -298,31 +245,7 @@ async def unhcr_implementing_partners(
     top_n: int = 10,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Main Implementing Partners by Country.
-    
-    **Purpose:** Understand implementation ecosystem
-    
-    **Question 3 of 7 Core Analytical Questions**
-    
-    This tool identifies the main implementing partners (organizations with role=Implementing)
-    for activities in a specific country (or all countries if not specified).
-    
-    Args:
-        country_code: ISO 2-letter country code (e.g., "SY", "KEN")
-        top_n: Number of top partners to return (default: 10)
-        max_records: Maximum number of activities to process (default: 10000)
-    
-    Returns:
-        List of dictionaries containing:
-        - org_ref: Organization reference
-        - org_name: Organization name
-        - activity_count: Number of activities where they are implementing partner
-        - role: Role type (Implementing, Accountable, etc.)
-    
-    Example:
-        unhcr_implementing_partners(country_code="SY", top_n=5)
-    """
+    """Get main implementing partners by country."""
     try:
         # Build query
         q = unhcr_filter()
@@ -400,37 +323,7 @@ async def unhcr_earmarking_breakdown(
     country_code: Optional[str] = None,
     max_records: int = 10000
 ) -> Dict[str, Any]:
-    """
-    Earmarking Type Breakdown.
-    
-    **Purpose:** Analyze funding flexibility
-    
-    **Question 4 of 7 Core Analytical Questions**
-    
-    This tool breaks down transactions by earmarking category, showing how funds
-    are earmarked (Core, Tightly earmarked, Loosely earmarked, etc.).
-    
-    Earmarking Categories:
-    - 0: Un-earmarked
-    - 1: Tightly earmarked
-    - 2: Loosely earmarked
-    - 3: Core/Un-earmarked contributions
-    
-    Args:
-        year: Optional year filter
-        country_code: Optional ISO 2-letter country code filter
-        max_records: Maximum number of transactions to process (default: 10000)
-    
-    Returns:
-        Dictionary containing:
-        - total_transactions: Total number of transactions
-        - total_value: Total value of all transactions
-        - breakdown: List of earmarking categories with amounts and percentages
-        - categories: Mapping of category codes to names
-    
-    Example:
-        unhcr_earmarking_breakdown(year=2025)
-    """
+    """Get earmarking type breakdown for transactions."""
     try:
         # Earmarking category mapping
         EARMARKING_CATEGORIES = {
@@ -510,38 +403,7 @@ async def unhcr_partnership_analysis(
     country_code: Optional[str] = None,
     max_records: int = 10000
 ) -> Dict[str, Any]:
-    """
-    Partnership Level Analysis.
-    
-    **Purpose:** Understand collaboration patterns
-    
-    **Question 5 of 7 Core Analytical Questions**
-    
-    This tool analyzes the partnership levels (roles) across UNHCR activities,
-    showing how many organizations are involved at each level (Funding, Accountable,
-    Implementing, Extending).
-    
-    Partnership Roles:
-    - 1: Funding - The government or organisation which provides funds
-    - 2: Accountable - Organisation responsible for oversight
-    - 3: Implementing - Organisation physically carrying out the activity
-    - 4: Extending - Organisation managing budget on behalf of funder
-    
-    Args:
-        country_code: Optional ISO 2-letter country code filter
-        max_records: Maximum number of activities to process (default: 10000)
-    
-    Returns:
-        Dictionary containing:
-        - total_activities: Total number of activities analyzed
-        - partnership_role_counts: Count of each role type
-        - partnership_role_values: Value distribution by role
-        - average_partners_per_activity: Average number of partners per activity
-        - role_definitions: Mapping of role codes to descriptions
-    
-    Example:
-        unhcr_partnership_analysis(country_code="SY")
-    """
+    """Analyze partnership levels across activities."""
     try:
         # Partnership role mapping
         PARTNERSHIP_ROLES = {
@@ -619,39 +481,7 @@ async def unhcr_budget_vs_expenditure(
     country_code: Optional[str] = None,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Expenditure vs Budget Comparison.
-    
-    **Purpose:** Track financial execution
-    
-    **Question 6 of 7 Core Analytical Questions**
-    
-    This tool compares budgeted amounts with actual expenditures, calculating
-    deviations to track financial execution performance.
-    
-    Calculation Methodology:
-    - Deviation (%) = (actual - target) / target * 100
-    - Positive deviation: Expenditure exceeds budget
-    - Negative deviation: Expenditure below budget
-    
-    Args:
-        year: Optional year filter
-        country_code: Optional ISO 2-letter country code filter
-        max_records: Maximum number of records to process (default: 10000)
-    
-    Returns:
-        List of dictionaries containing:
-        - activity_id: Activity identifier
-        - activity_title: Activity title
-        - budget_value: Planned budget value
-        - expenditure_value: Actual expenditure value
-        - deviation_amount: Absolute deviation (expenditure - budget)
-        - deviation_percentage: Percentage deviation
-        - status: "On track", "Under budget", "Over budget"
-    
-    Example:
-        unhcr_budget_vs_expenditure(year=2025, country_code="SY")
-    """
+    """Compare budget vs expenditure for financial tracking."""
     try:
         # Fetch budgets and transactions
         q = unhcr_filter()
@@ -747,43 +577,7 @@ async def unhcr_indicator_trends(
     end_year: int = 2025,
     max_records: int = 10000
 ) -> List[Dict[str, Any]]:
-    """
-    Indicator Evolution Over Time.
-    
-    **Purpose:** Monitor programme performance
-    
-    **Question 7 of 7 Core Analytical Questions**
-    
-    This tool tracks indicator values over time, showing evolution of UNHCR's
-    results framework indicators (Impact, Outcome, Output levels).
-    
-    Indicator Types:
-    - Impact: Long-term outcomes (global level)
-    - Outcome: Medium-term results (country/operation level) - 16 OA areas
-    - Output: Short-term deliverables (activity level)
-    
-    Args:
-        indicator_ref: Optional specific indicator reference to track
-        country_code: Optional ISO 2-letter country code filter
-        start_year: Starting year for trend analysis (default: 2020)
-        end_year: Ending year for trend analysis (default: 2025)
-        max_records: Maximum number of indicators to process (default: 10000)
-    
-    Returns:
-        List of dictionaries containing:
-        - indicator_ref: Indicator reference
-        - indicator_title: Indicator title
-        - indicator_type: "Impact", "Outcome", or "Output"
-        - year: Year of measurement
-        - actual_value: Actual value achieved
-        - target_value: Target value
-        - baseline_value: Baseline value
-        - progress_percentage: Percentage of target achieved
-        - deviation_from_target: Difference from target
-    
-    Example:
-        unhcr_indicator_trends(country_code="SY", start_year=2023)
-    """
+    """Track indicator evolution over time for performance monitoring."""
     try:
         # Build query for indicators
         q = unhcr_filter()
@@ -913,26 +707,7 @@ async def unhcr_analytical_questions_summary(
     country_code: Optional[str] = None,
     year: Optional[int] = None
 ) -> Dict[str, Any]:
-    """
-    Get a comprehensive summary answering all 7 core analytical questions.
-    
-    This is a meta-tool that calls all 7 analytical question tools and
-    returns a consolidated report.
-    
-    Args:
-        country_code: Optional ISO 2-letter country code for filtering
-        year: Optional year for filtering
-    
-    Returns:
-        Dictionary containing results from all 7 analytical questions:
-        1. most_funded_sectors
-        2. top_donors
-        3. implementing_partners
-        4. earmarking_breakdown
-        5. partnership_analysis
-        6. budget_vs_expenditure
-        7. indicator_trends
-    """
+    """Get summary of all 7 core analytical questions."""
     results = {}
     
     try:

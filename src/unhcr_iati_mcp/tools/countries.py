@@ -24,17 +24,7 @@ async def unhcr_top_countries(
     top_n: int = 20,
     max_records: int = 10000
 ) -> List[Tuple[str, int]]:
-    """
-    Retrieve and rank countries by the number of activities.
-    
-    Args:
-        top_n: Number of top countries to return (default: 20)
-        max_records: Maximum number of activities to process (default: 10000)
-        
-    Returns:
-        List of tuples containing (country_code, activity_count) sorted by count descending
-        or empty list on error
-    """
+    """Get top N countries by activity count."""
     try:
         activities = await iati_client.fetch_all(
             collection="activity",
