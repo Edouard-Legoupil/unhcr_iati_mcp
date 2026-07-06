@@ -388,45 +388,31 @@ async def _call_tool(name: str, arguments: dict[str, Any], api_client: Any) -> d
 
 
 async def _list_resources() -> dict[str, Any]:
-    """List all available MCP resources."""
-    resources = [
-        {"uri": "unhcr://donors", "name": "UNHCR Donors", 
-         "description": "Donor code to name mapping", "mimeType": "application/json"},
-        {"uri": "unhcr://countries", "name": "UNHCR Countries", 
-         "description": "Country reference data", "mimeType": "application/json"},
-        {"uri": "unhcr://sectors", "name": "UNHCR Sectors", 
-         "description": "Sector code to name mapping", "mimeType": "application/json"},
-        {"uri": "unhcr://sdgs", "name": "UNHCR SDGs", 
-         "description": "Sustainable Development Goals mapping", "mimeType": "application/json"},
-        {"uri": "unhcr://glossary", "name": "IATI Glossary", 
-         "description": "IATI terminology glossary", "mimeType": "application/json"},
-        {"uri": "unhcr://portfolio", "name": "UNHCR Portfolio", 
-         "description": "UNHCR portfolio metadata", "mimeType": "application/json"},
-        {"uri": "unhcr://schemas/activity", "name": "Activity Schema", 
-         "description": "IATI activity schema definition", "mimeType": "application/json"},
-        {"uri": "unhcr://schemas/transaction", "name": "Transaction Schema", 
-         "description": "IATI transaction schema definition", "mimeType": "application/json"},
-        {"uri": "unhcr://schemas/budget", "name": "Budget Schema", 
-         "description": "IATI budget schema definition", "mimeType": "application/json"},
-    ]
-    return {"resources": resources}
+    """List all available MCP resources by querying FastMCP's registry."""
+    try:
+        resources_list = await mcp.list_resources()
+        resources = []
+        for resource in resources_list:
+            resources.append({
+                "uri": resource.uri,
+                "name": resource.name or resource.uri.split("://")[-1],
+                "description": resource.description or "",
+                "mimeType": resource.mime_type or "application/json",
+            })
+        return {"resources": resources}
+    except Exception as e:
+        logger.warning(f"Failed to get resources from mcp: {e}")
+        return {"resources": []}
 
 
 async def _read_resource(uri: str) -> dict[str, Any]:
-    """Read a specific MCP resource."""
-    resource_data = {
-        "unhcr://donors": {"DEU": "Germany", "USA": "United States", "GBR": "United Kingdom"},
-        "unhcr://countries": {"AF": "Afghanistan", "SYR": "Syria", "KE": "Kenya"},
-        "unhcr://sectors": {"12220": "Basic health care", "12181": "Health education"},
-        "unhcr://sdgs": {"1": {"name": "No Poverty"}, "3": {"name": "Good Health and Well-being"}},
-        "unhcr://glossary": {"activity": "IATI project/programme"},
-        "unhcr://portfolio": {"publisher": "XM-DAC-41121", "organisation": "UNHCR"},
-        "unhcr://schemas/activity": {"iati_identifier": "string", "title_narrative": "string[]"},
-        "unhcr://schemas/transaction": {"transaction_value": "float[]"},
-        "unhcr://schemas/budget": {"budget_value": "float[]"},
-    }
-    data = resource_data.get(uri, {})
-    return {"contents": [{"uri": uri, "mimeType": "application/json", "text": json.dumps(data)}]}
+    """Read a specific MCP resource by delegating to FastMCP's registry."""
+    try:
+        result = await mcp.read_resource(uri)
+        return {"contents": [{"uri": uri, "mimeType": "application/json", "text": str(result)}]}
+    except Exception as e:
+        logger.warning(f"Failed to read resource {uri}: {e}")
+        return {"contents": []}
 
 
 # ============================================================================
