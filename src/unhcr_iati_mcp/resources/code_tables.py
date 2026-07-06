@@ -1,7 +1,7 @@
 """
 IATI Code Tables as MCP Resources
 
-This module exposes all 41 IATI code lookup tables from .arc/R-analysis/ as MCP resources.
+This module exposes all 41 IATI code lookup tables as MCP resources.
 These tables are critical for data interpretation, validation, and human-readable output.
 
 The RData files are loaded using pyreadr and cached in memory for performance.
@@ -20,22 +20,35 @@ Categories:
     - policy: policy marker, humanitarian scope, clusters
     - result: indicator, result types
     - other: currency, description type, etc.
+
+Data Location:
+    The RData files are now stored in the package at: src/unhcr_iati_mcp/data/codelists/
+    This ensures they are part of the package distribution and can be loaded reliably.
+
+Note: The .RData files were originally sourced from the iati package:
+https://github.com/IATI/IATI-R-data-package
 """
 
 import pyreadr
 from pathlib import Path
 from functools import lru_cache
 from typing import List, Dict, Any
+import logging
 
 from unhcr_iati_mcp.context import mcp
 
-# Directory containing RData files
-RDATA_DIR = Path(__file__).parent.parent.parent.parent / ".arc" / "R-analysis"
+# Configure logging for code table loading
+logger = logging.getLogger(__name__)
+
+# Directory containing RData files - now in package data directory
+# This path is relative to this module and will work when installed as a package
+RDATA_DIR = Path(__file__).parent.parent / "data" / "codelists"
 
 # Cache for loaded code tables
 _code_table_cache: Dict[str, List[Dict[str, Any]]] = {}
 
 # Essential tables to pre-load (frequently accessed)
+# These are the most commonly used code tables in IATI data analysis
 ESSENTIAL_TABLES = [
     "codeCountry",
     "codeRegion",
@@ -53,6 +66,49 @@ ESSENTIAL_TABLES = [
 ]
 
 
+def get_available_code_tables() -> List[str]:
+    """
+    Get a list of all available code table files.
+    
+    Returns:
+        List of filenames without the .RData extension
+    """
+    if not RDATA_DIR.exists():
+        logger.warning(f"Code tables directory not found: {RDATA_DIR}")
+        return []
+    
+    rdata_files = list(RDATA_DIR.glob("*.RData"))
+    return [f.stem for f in rdata_files]
+
+
+def get_code_table_metadata() -> Dict[str, Dict[str, Any]]:
+    """
+    Get metadata about all available code tables.
+    
+    Returns:
+        Dictionary mapping table names to their metadata including:
+        - filename: The RData filename
+        - filepath: Full path to the file
+        - file_size: Size of the file in bytes
+        - is_essential: Whether this table is in the essential pre-load list
+        - is_loaded: Whether this table is currently in the cache
+    """
+    available_tables = get_available_code_tables()
+    metadata = {}
+    
+    for filename in available_tables:
+        filepath = RDATA_DIR / f"{filename}.RData"
+        metadata[filename] = {
+            "filename": f"{filename}.RData",
+            "filepath": str(filepath),
+            "file_size": filepath.stat().st_size if filepath.exists() else 0,
+            "is_essential": filename in ESSENTIAL_TABLES,
+            "is_loaded": filename in _code_table_cache
+        }
+    
+    return metadata
+
+
 def _load_code_table(filename: str) -> List[Dict[str, Any]]:
     """
     Load an RData file and return as list of dictionaries.
@@ -62,43 +118,94 @@ def _load_code_table(filename: str) -> List[Dict[str, Any]]:
     
     Returns:
         List of dictionaries representing the code table entries
+        
+    Raises:
+        FileNotFoundError: If the RData file does not exist
+        ValueError: If the RData file cannot be parsed
     """
     if filename in _code_table_cache:
+        logger.debug(f"Code table '{filename}' loaded from cache")
         return _code_table_cache[filename]
     
     filepath = RDATA_DIR / f"{filename}.RData"
     
-    # Load the RData file
-    result = pyreadr.read_r(str(filepath))
+    # Check if file exists
+    if not filepath.exists():
+        logger.error(f"Code table file not found: {filepath}")
+        raise FileNotFoundError(f"Code table file not found: {filename}.RData")
     
-    # Get the first (and typically only) dataframe
-    df = list(result.values())[0]
+    logger.debug(f"Loading code table: {filename}")
     
-    # Convert to list of dicts (JSON-serializable)
-    data = df.to_dict(orient="records")
-    
-    # Clean up - convert numpy types to Python native types
-    cleaned_data = []
-    for entry in data:
-        cleaned_entry = {}
-        for key, value in entry.items():
-            # Convert numpy float/int to Python types
-            if hasattr(value, 'item'):
-                cleaned_entry[key] = value.item() if value.item() != value.item() else None
-            # Convert numpy NaN to None
-            elif value != value:  # NaN check
-                cleaned_entry[key] = None
-            else:
-                cleaned_entry[key] = value
-        cleaned_data.append(cleaned_entry)
-    
-    _code_table_cache[filename] = cleaned_data
-    return cleaned_data
+    try:
+        # Load the RData file
+        result = pyreadr.read_r(str(filepath))
+        
+        # Get the first (and typically only) dataframe
+        if not result:
+            logger.error(f"No data found in RData file: {filename}")
+            raise ValueError(f"No data found in RData file: {filename}")
+        
+        df = list(result.values())[0]
+        
+        # Convert to list of dicts (JSON-serializable)
+        data = df.to_dict(orient="records")
+        
+        # Clean up - convert numpy types to Python native types
+        cleaned_data = []
+        for entry in data:
+            cleaned_entry = {}
+            for key, value in entry.items():
+                # Convert numpy float/int to Python types
+                if hasattr(value, 'item'):
+                    cleaned_entry[key] = value.item() if value.item() != value.item() else None
+                # Convert numpy NaN to None
+                elif value != value:  # NaN check
+                    cleaned_entry[key] = None
+                else:
+                    cleaned_entry[key] = value
+            cleaned_data.append(cleaned_entry)
+        
+        _code_table_cache[filename] = cleaned_data
+        logger.info(f"Code table '{filename}' loaded successfully with {len(cleaned_data)} entries")
+        return cleaned_data
+        
+    except Exception as e:
+        logger.error(f"Failed to load code table '{filename}': {e}")
+        raise ValueError(f"Failed to load code table '{filename}': {e}")
 
 
 # Pre-load essential tables at module import time
+# Use a try-except to handle cases where tables might not be available
 for table in ESSENTIAL_TABLES:
-    _load_code_table(table)
+    try:
+        _load_code_table(table)
+    except (FileNotFoundError, ValueError) as e:
+        logger.warning(f"Could not pre-load essential table '{table}': {e}")
+
+
+# Add a function to clear and reload the cache
+def reload_code_tables() -> Dict[str, int]:
+    """
+    Clear the code table cache and reload all essential tables.
+    
+    Returns:
+        Dictionary with reload statistics
+    """
+    global _code_table_cache
+    old_count = len(_code_table_cache)
+    _code_table_cache = {}
+    
+    reload_stats = {"cleared": old_count, "reloaded": 0, "failed": 0, "errors": []}
+    
+    for table in ESSENTIAL_TABLES:
+        try:
+            _load_code_table(table)
+            reload_stats["reloaded"] += 1
+        except Exception as e:
+            reload_stats["failed"] += 1
+            reload_stats["errors"].append(f"{table}: {e}")
+    
+    return reload_stats
 
 
 # =============================================================================
@@ -765,3 +872,100 @@ async def all_code_tables():
             table["entry_count"] = 0
     
     return all_tables
+
+
+# =============================================================================
+# CODE TABLE METADATA RESOURCES
+# =============================================================================
+
+@mcp.resource("unhcr://codes/metadata")
+async def code_table_metadata():
+    """
+    Get metadata about all available IATI code tables.
+    
+    This resource provides information about which code tables are available,
+    their file sizes, and whether they are currently loaded in memory.
+    
+    Returns:
+        Dictionary mapping table names to their metadata including:
+        - filename: The RData filename
+        - filepath: Full path to the file
+        - file_size: Size of the file in bytes
+        - is_essential: Whether this table is in the essential pre-load list
+        - is_loaded: Whether this table is currently in the cache
+        
+    Example:
+        {
+            "codeCountry": {
+                "filename": "codeCountry.RData",
+                "filepath": "/path/to/src/unhcr_iati_mcp/data/codelists/codeCountry.RData",
+                "file_size": 3145,
+                "is_essential": true,
+                "is_loaded": true
+            },
+            ...
+        }
+    """
+    return get_code_table_metadata()
+
+
+@mcp.resource("unhcr://codes/available")
+async def available_code_tables():
+    """
+    Get a list of all available IATI code table names.
+    
+    This is a simple list of all code table filenames (without .RData extension)
+    that are available for loading.
+    
+    Returns:
+        List of strings with table names
+        
+    Example:
+        ["codeCountry", "codeRegion", "codeSector", "codeActivityStatus", ...]
+    """
+    return get_available_code_tables()
+
+
+@mcp.resource("unhcr://codes/essential")
+async def essential_code_tables():
+    """
+    Get the list of essential code tables that are pre-loaded at startup.
+    
+    These are the most frequently accessed code tables in IATI data analysis.
+    
+    Returns:
+        List of essential table names
+        
+    Example:
+        ["codeCountry", "codeRegion", "codeSector", "codeSectorCategory", ...]
+    """
+    return ESSENTIAL_TABLES
+
+
+@mcp.resource("unhcr://codes/cache_status")
+async def code_table_cache_status():
+    """
+    Get the current status of the code table cache.
+    
+    This resource provides information about which code tables are currently
+    loaded in memory and how many entries each contains.
+    
+    Returns:
+        Dictionary with:
+        - loaded_tables: List of currently loaded table names
+        - cache_size: Total number of entries across all loaded tables
+        - table_counts: Dictionary mapping table names to their entry counts
+        
+    Example:
+        {
+            "loaded_tables": ["codeCountry", "codeSector", ...],
+            "cache_size": 1547,
+            "table_counts": {"codeCountry": 251, "codeSector": 323, ...}
+        }
+    """
+    cache_status = {
+        "loaded_tables": list(_code_table_cache.keys()),
+        "cache_size": sum(len(data) for data in _code_table_cache.values()),
+        "table_counts": {name: len(data) for name, data in _code_table_cache.items()}
+    }
+    return cache_status
