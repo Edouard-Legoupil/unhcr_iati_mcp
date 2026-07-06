@@ -12,6 +12,13 @@ Resources = provide context, reference data, metadata, schemas, documentation, d
 - `unhcr://sector_analysis_guidelines` - Comprehensive guidelines for correct sector data analysis
 - `unhcr://sector_vocabulary_warnings` - Quick-reference warnings for each vocabulary
 
+### Result Framework Resources (results.py)
+- `unhcr://result_types` - Metadata about IATI result type codes (Output, Outcome, Impact, Other)
+- `unhcr://indicator_measures` - Metadata about IATI indicator measure codes (Unit, Percentage, Nominal, Ordinal, Qualitative)
+- `unhcr://result_areas` - UNHCR's 16 Operational Areas (OA) at the outcome level
+- `unhcr://result_analysis_guidelines` - Comprehensive guidelines for correct result data analysis
+- `unhcr://disaggregation_dimensions` - Metadata about common disaggregation dimensions (sex, age, disability, etc.)
+
 ### Code Tables (code_tables.py)
 - 41 IATI code lookup tables from .arc/R-analysis/ as MCP resources
 - Includes: sector, sector_category, sector_vocabulary, country, region, aid_type, etc.

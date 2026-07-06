@@ -62,6 +62,40 @@ class Activity(BaseModel):
     humanitarian_scope_narrative: Union[str, List[str]] = Field(default_factory=list, description="Humanitarian scope narratives")
     humanitarian_scope_vocabulary: Union[str, List[str]] = Field(default_factory=list, description="Humanitarian scope vocabularies")
     
+    # Result framework data
+    result_type: Union[str, List[str]] = Field(default_factory=list, description="Result type codes (1=Output, 2=Outcome, 3=Impact, 9=Other)")
+    result_title_narrative: Union[str, List[str]] = Field(default_factory=list, description="Result titles")
+    result_aggregation_status: Union[bool, List[bool]] = Field(default_factory=list, description="Result aggregation status flags")
+    
+    # Indicator data
+    result_indicator_ref: Union[str, List[str]] = Field(default_factory=list, description="Indicator references")
+    result_indicator_title_narrative: Union[str, List[str]] = Field(default_factory=list, description="Indicator titles")
+    result_indicator_description_narrative: Union[str, List[str]] = Field(default_factory=list, description="Indicator descriptions")
+    result_indicator_measure: Union[str, List[str]] = Field(default_factory=list, description="Indicator measure types (1=Unit, 2=Percentage, 3=Nominal, 4=Ordinal, 5=Qualitative)")
+    
+    # Indicator baseline data
+    result_indicator_baseline_year: Union[int, List[int]] = Field(default_factory=list, description="Baseline years")
+    result_indicator_baseline_value: Union[str, List[str]] = Field(default_factory=list, description="Baseline values")
+    result_indicator_baseline_location_ref: Union[str, List[str]] = Field(default_factory=list, description="Baseline location references")
+    result_indicator_baseline_dimension_name: Union[str, List[str], List[List[str]]] = Field(default_factory=list, description="Baseline disaggregation dimension names")
+    result_indicator_baseline_dimension_value: Union[str, List[str], List[List[str]]] = Field(default_factory=list, description="Baseline disaggregation dimension values")
+    
+    # Indicator target period data
+    result_indicator_period_target_value: Union[str, List[str]] = Field(default_factory=list, description="Target period values")
+    result_indicator_period_target_location_ref: Union[str, List[str]] = Field(default_factory=list, description="Target period location references")
+    result_indicator_period_target_dimension_name: Union[str, List[str], List[List[str]]] = Field(default_factory=list, description="Target period disaggregation dimension names")
+    result_indicator_period_target_dimension_value: Union[str, List[str], List[List[str]]] = Field(default_factory=list, description="Target period disaggregation dimension values")
+    
+    # Indicator actual period data
+    result_indicator_period_actual_value: Union[str, List[str]] = Field(default_factory=list, description="Actual period values")
+    result_indicator_period_actual_location_ref: Union[str, List[str]] = Field(default_factory=list, description="Actual period location references")
+    result_indicator_period_actual_dimension_name: Union[str, List[str], List[List[str]]] = Field(default_factory=list, description="Actual period disaggregation dimension names")
+    result_indicator_period_actual_dimension_value: Union[str, List[str], List[List[str]]] = Field(default_factory=list, description="Actual period disaggregation dimension values")
+    
+    # Indicator period dates
+    result_indicator_period_start_iso_date: Union[str, List[str]] = Field(default_factory=list, description="Indicator period start dates")
+    result_indicator_period_end_iso_date: Union[str, List[str]] = Field(default_factory=list, description="Indicator period end dates")
+    
     # Default values
     default_currency: Optional[str] = Field(None, description="Default currency code")
     default_aid_type_code: Union[str, List[str]] = Field(default_factory=list, description="Default aid type codes")
@@ -122,6 +156,29 @@ class Activity(BaseModel):
             'document_link_title_narrative',
             'related_activity_ref',
             'related_activity_type',
+            # Result framework fields
+            'result_type',
+            'result_title_narrative',
+            'result_aggregation_status',
+            'result_indicator_ref',
+            'result_indicator_title_narrative',
+            'result_indicator_description_narrative',
+            'result_indicator_measure',
+            'result_indicator_baseline_year',
+            'result_indicator_baseline_value',
+            'result_indicator_baseline_location_ref',
+            'result_indicator_baseline_dimension_name',
+            'result_indicator_baseline_dimension_value',
+            'result_indicator_period_target_value',
+            'result_indicator_period_target_location_ref',
+            'result_indicator_period_target_dimension_name',
+            'result_indicator_period_target_dimension_value',
+            'result_indicator_period_actual_value',
+            'result_indicator_period_actual_location_ref',
+            'result_indicator_period_actual_dimension_name',
+            'result_indicator_period_actual_dimension_value',
+            'result_indicator_period_start_iso_date',
+            'result_indicator_period_end_iso_date',
         ]
         
         # Remove fields that should NOT be lists
@@ -299,6 +356,266 @@ class Activity(BaseModel):
             'severity': 'CRITICAL',
             'recommendation': 'Filter to a single vocabulary before aggregation. For UNHCR analysis, use vocabulary 98.'
         }
+    
+    # =============================================================================
+    # RESULT FRAMEWORK METHODS
+    # =============================================================================
+    
+    def get_result_info(self) -> List[Dict[str, Any]]:
+        """
+        Get result information as a list of structured dictionaries.
+        
+        This method pairs up result_type, result_title_narrative, and
+        result_aggregation_status into a list of result info objects.
+        
+        Returns:
+            List of dictionaries containing:
+            - result_type: Result type code (1=Output, 2=Outcome, 3=Impact, 9=Other)
+            - result_title_narrative: Human-readable result title
+            - result_aggregation_status: Whether result values should be aggregated
+            - indicator_count: Number of indicators for this result
+            
+        Note: Results can have multiple indicators. Use get_indicators_by_result()
+        to get the indicators for each result.
+        """
+        result_info = []
+        
+        types = self.result_type if isinstance(self.result_type, list) else [self.result_type] if self.result_type else []
+        titles = self.result_title_narrative if isinstance(self.result_title_narrative, list) else [self.result_title_narrative] if self.result_title_narrative else []
+        agg_statuses = self.result_aggregation_status if isinstance(self.result_aggregation_status, list) else [self.result_aggregation_status] if self.result_aggregation_status else []
+        
+        max_len = max(len(types), len(titles), len(agg_statuses))
+        
+        for i in range(max_len):
+            result_info.append({
+                'result_type': types[i] if i < len(types) else None,
+                'result_title_narrative': titles[i] if i < len(titles) else None,
+                'result_aggregation_status': agg_statuses[i] if i < len(agg_statuses) else None
+            })
+        
+        return [r for r in result_info if any(v is not None for v in r.values())]
+    
+    def get_indicator_info(self) -> List[Dict[str, Any]]:
+        """
+        Get indicator information as a list of structured dictionaries.
+        
+        This method pairs up all indicator-related fields into a list of
+        indicator info objects with their baseline, target, and actual values.
+        
+        Returns:
+            List of dictionaries containing:
+            - indicator_ref: Unique indicator reference
+            - indicator_title_narrative: Human-readable indicator title
+            - indicator_description_narrative: Indicator description
+            - indicator_measure: Measure type code (1=Unit, 2=Percentage, 3=Nominal, 4=Ordinal, 5=Qualitative)
+            - baseline_year: Baseline year
+            - baseline_value: Baseline value
+            - baseline_location_ref: Baseline location
+            - baseline_dimension_name: Baseline disaggregation dimensions
+            - baseline_dimension_value: Baseline disaggregation dimension values
+            - period_target_value: Target value
+            - period_target_location_ref: Target location
+            - period_target_dimension_name: Target disaggregation dimensions
+            - period_target_dimension_value: Target disaggregation dimension values
+            - period_actual_value: Actual value
+            - period_actual_location_ref: Actual location
+            - period_actual_dimension_name: Actual disaggregation dimensions
+            - period_actual_dimension_value: Actual disaggregation dimension values
+            - period_start_iso_date: Period start date
+            - period_end_iso_date: Period end date
+            
+        Note: IATI Datastore stores these as separate list fields, so we
+        reconstruct the structure by aligning indices.
+        """
+        indicator_info = []
+        
+        # Get all indicator fields
+        refs = self.result_indicator_ref if isinstance(self.result_indicator_ref, list) else [self.result_indicator_ref] if self.result_indicator_ref else []
+        titles = self.result_indicator_title_narrative if isinstance(self.result_indicator_title_narrative, list) else [self.result_indicator_title_narrative] if self.result_indicator_title_narrative else []
+        descriptions = self.result_indicator_description_narrative if isinstance(self.result_indicator_description_narrative, list) else [self.result_indicator_description_narrative] if self.result_indicator_description_narrative else []
+        measures = self.result_indicator_measure if isinstance(self.result_indicator_measure, list) else [self.result_indicator_measure] if self.result_indicator_measure else []
+        
+        # Baseline fields
+        baseline_years = self.result_indicator_baseline_year if isinstance(self.result_indicator_baseline_year, list) else [self.result_indicator_baseline_year] if self.result_indicator_baseline_year else []
+        baseline_values = self.result_indicator_baseline_value if isinstance(self.result_indicator_baseline_value, list) else [self.result_indicator_baseline_value] if self.result_indicator_baseline_value else []
+        baseline_locations = self.result_indicator_baseline_location_ref if isinstance(self.result_indicator_baseline_location_ref, list) else [self.result_indicator_baseline_location_ref] if self.result_indicator_baseline_location_ref else []
+        baseline_dim_names = self.result_indicator_baseline_dimension_name if isinstance(self.result_indicator_baseline_dimension_name, list) else [self.result_indicator_baseline_dimension_name] if self.result_indicator_baseline_dimension_name else []
+        baseline_dim_values = self.result_indicator_baseline_dimension_value if isinstance(self.result_indicator_baseline_dimension_value, list) else [self.result_indicator_baseline_dimension_value] if self.result_indicator_baseline_dimension_value else []
+        
+        # Target period fields
+        target_values = self.result_indicator_period_target_value if isinstance(self.result_indicator_period_target_value, list) else [self.result_indicator_period_target_value] if self.result_indicator_period_target_value else []
+        target_locations = self.result_indicator_period_target_location_ref if isinstance(self.result_indicator_period_target_location_ref, list) else [self.result_indicator_period_target_location_ref] if self.result_indicator_period_target_location_ref else []
+        target_dim_names = self.result_indicator_period_target_dimension_name if isinstance(self.result_indicator_period_target_dimension_name, list) else [self.result_indicator_period_target_dimension_name] if self.result_indicator_period_target_dimension_name else []
+        target_dim_values = self.result_indicator_period_target_dimension_value if isinstance(self.result_indicator_period_target_dimension_value, list) else [self.result_indicator_period_target_dimension_value] if self.result_indicator_period_target_dimension_value else []
+        
+        # Actual period fields
+        actual_values = self.result_indicator_period_actual_value if isinstance(self.result_indicator_period_actual_value, list) else [self.result_indicator_period_actual_value] if self.result_indicator_period_actual_value else []
+        actual_locations = self.result_indicator_period_actual_location_ref if isinstance(self.result_indicator_period_actual_location_ref, list) else [self.result_indicator_period_actual_location_ref] if self.result_indicator_period_actual_location_ref else []
+        actual_dim_names = self.result_indicator_period_actual_dimension_name if isinstance(self.result_indicator_period_actual_dimension_name, list) else [self.result_indicator_period_actual_dimension_name] if self.result_indicator_period_actual_dimension_name else []
+        actual_dim_values = self.result_indicator_period_actual_dimension_value if isinstance(self.result_indicator_period_actual_dimension_value, list) else [self.result_indicator_period_actual_dimension_value] if self.result_indicator_period_actual_dimension_value else []
+        
+        # Period dates
+        period_starts = self.result_indicator_period_start_iso_date if isinstance(self.result_indicator_period_start_iso_date, list) else [self.result_indicator_period_start_iso_date] if self.result_indicator_period_start_iso_date else []
+        period_ends = self.result_indicator_period_end_iso_date if isinstance(self.result_indicator_period_end_iso_date, list) else [self.result_indicator_period_end_iso_date] if self.result_indicator_period_end_iso_date else []
+        
+        max_len = max(
+            len(refs), len(titles), len(descriptions), len(measures),
+            len(baseline_years), len(baseline_values), len(baseline_locations),
+            len(target_values), len(target_locations),
+            len(actual_values), len(actual_locations),
+            len(period_starts), len(period_ends)
+        )
+        
+        for i in range(max_len):
+            indicator_info.append({
+                'indicator_ref': refs[i] if i < len(refs) else None,
+                'indicator_title_narrative': titles[i] if i < len(titles) else None,
+                'indicator_description_narrative': descriptions[i] if i < len(descriptions) else None,
+                'indicator_measure': measures[i] if i < len(measures) else None,
+                'baseline_year': baseline_years[i] if i < len(baseline_years) else None,
+                'baseline_value': baseline_values[i] if i < len(baseline_values) else None,
+                'baseline_location_ref': baseline_locations[i] if i < len(baseline_locations) else None,
+                'baseline_dimension_name': baseline_dim_names[i] if i < len(baseline_dim_names) else None,
+                'baseline_dimension_value': baseline_dim_values[i] if i < len(baseline_dim_values) else None,
+                'period_target_value': target_values[i] if i < len(target_values) else None,
+                'period_target_location_ref': target_locations[i] if i < len(target_locations) else None,
+                'period_target_dimension_name': target_dim_names[i] if i < len(target_dim_names) else None,
+                'period_target_dimension_value': target_dim_values[i] if i < len(target_dim_values) else None,
+                'period_actual_value': actual_values[i] if i < len(actual_values) else None,
+                'period_actual_location_ref': actual_locations[i] if i < len(actual_locations) else None,
+                'period_actual_dimension_name': actual_dim_names[i] if i < len(actual_dim_names) else None,
+                'period_actual_dimension_value': actual_dim_values[i] if i < len(actual_dim_values) else None,
+                'period_start_iso_date': period_starts[i] if i < len(period_starts) else None,
+                'period_end_iso_date': period_ends[i] if i < len(period_ends) else None
+            })
+        
+        return [i for i in indicator_info if any(v is not None for v in i.values())]
+    
+    def get_results_with_indicators(self) -> Dict[str, Any]:
+        """
+        Get results with their associated indicators.
+        
+        This is the SAFEST way to work with result/indicator data from an activity,
+        as it properly associates indicators with their parent results.
+        
+        Returns:
+            Dictionary with:
+            - results: List of result info
+            - indicators: List of indicator info
+            - results_by_type: Results grouped by type (Output, Outcome, Impact)
+            - indicators_by_result: Indicators grouped by result index
+            
+        Note: The IATI Datastore stores results and indicators as separate
+        list fields. This method reconstructs the hierarchy by index.
+        """
+        results = self.get_result_info()
+        indicators = self.get_indicator_info()
+        
+        # Group indicators by result (assuming 1:n relationship by index)
+        indicators_by_result = {}
+        for i, indicator in enumerate(indicators):
+            # Find the result index for this indicator
+            # In IATI, indicators typically follow their parent results
+            result_idx = min(i, len(results) - 1) if results else 0
+            if result_idx not in indicators_by_result:
+                indicators_by_result[result_idx] = []
+            indicators_by_result[result_idx].append(indicator)
+        
+        # Group results by type
+        results_by_type = {"1": [], "2": [], "3": [], "9": []}
+        for result in results:
+            rtype = result.get('result_type', '9')
+            if rtype in results_by_type:
+                results_by_type[rtype].append(result)
+            else:
+                results_by_type[rtype] = [result]
+        
+        return {
+            'results': results,
+            'indicators': indicators,
+            'results_by_type': results_by_type,
+            'indicators_by_result': indicators_by_result,
+            'total_results': len(results),
+            'total_indicators': len(indicators)
+        }
+    
+    def get_indicators_by_type(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get indicators grouped by their result type.
+        
+        Returns:
+            Dictionary mapping result type codes to lists of indicators.
+            
+        Example:
+            {
+                "1": [{"indicator_title": "...", ...}],  # Output indicators
+                "2": [{"indicator_title": "...", ...}],  # Outcome indicators
+                "3": [{"indicator_title": "...", ...}]   # Impact indicators
+            }
+        """
+        results_info = self.get_results_with_indicators()
+        results_by_type = results_info['results_by_type']
+        indicators_by_result = results_info['indicators_by_result']
+        
+        indicators_by_type = {"1": [], "2": [], "3": [], "9": []}
+        
+        for result_idx, result_type in enumerate([r.get('result_type', '9') for r in results_info['results']]):
+            if result_idx in indicators_by_result:
+                for indicator in indicators_by_result[result_idx]:
+                    if result_type in indicators_by_type:
+                        indicators_by_type[result_type].append(indicator)
+                    else:
+                        indicators_by_type[result_type] = [indicator]
+        
+        return indicators_by_type
+    
+    def get_quantitative_indicators(self) -> List[Dict[str, Any]]:
+        """
+        Get only quantitative indicators (Unit, Percentage, Nominal, Ordinal).
+        
+        Returns:
+            List of indicator info dictionaries for quantitative indicators.
+        """
+        from unhcr_iati_mcp.resources.results import is_quantitative_measure
+        
+        indicators = self.get_indicator_info()
+        quantitative = []
+        
+        for indicator in indicators:
+            measure = indicator.get('indicator_measure')
+            if measure and is_quantitative_measure(str(measure)):
+                quantitative.append(indicator)
+        
+        return quantitative
+    
+    def get_qualitative_indicators(self) -> List[Dict[str, Any]]:
+        """
+        Get only qualitative indicators.
+        
+        Returns:
+            List of indicator info dictionaries for qualitative indicators.
+        """
+        indicators = self.get_indicator_info()
+        qualitative = []
+        
+        for indicator in indicators:
+            measure = indicator.get('indicator_measure')
+            if measure and measure == "5":
+                qualitative.append(indicator)
+        
+        return qualitative
+    
+    def has_results_framework(self) -> bool:
+        """
+        Check if this activity has results framework data.
+        
+        Returns:
+            True if the activity has any result or indicator data, False otherwise.
+        """
+        return (
+            len(self.get_result_info()) > 0 or
+            len(self.get_indicator_info()) > 0
+        )
 
 
 class ActivitySummary(BaseModel):
