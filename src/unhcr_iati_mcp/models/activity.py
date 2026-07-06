@@ -5,7 +5,7 @@ This module defines the Pydantic model for IATI activity data based on
 the actual IATI Datastore schema from UNHCR activities.
 """
 
-from typing import List, Optional, Union, Any
+from typing import List, Optional, Union, Any, Dict
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -132,6 +132,173 @@ class Activity(BaseModel):
                 result[field] = [result[field]]
         
         return result
+    
+    def get_sector_info(self) -> List[Dict[str, Any]]:
+        """
+        Get sector information as a list of structured dictionaries.
+        
+        This method pairs up sector_code, sector_narrative, sector_vocabulary,
+        and sector_percentage into a list of sector info objects.
+        
+        Returns:
+            List of dictionaries containing:
+            - sector_code: The sector code
+            - sector_narrative: The human-readable sector name
+            - sector_vocabulary: The vocabulary code
+            - sector_percentage: The percentage allocation
+            
+        CRITICAL: This data spans multiple vocabularies. NEVER aggregate
+        across vocabularies without filtering first.
+        """
+        sector_info = []
+        
+        # Get the lengths of each list
+        codes = self.sector_code if isinstance(self.sector_code, list) else [self.sector_code] if self.sector_code else []
+        narratives = self.sector_narrative if isinstance(self.sector_narrative, list) else [self.sector_narrative] if self.sector_narrative else []
+        vocabularies = self.sector_vocabulary if isinstance(self.sector_vocabulary, list) else [self.sector_vocabulary] if self.sector_vocabulary else []
+        percentages = self.sector_percentage if isinstance(self.sector_percentage, list) else [self.sector_percentage] if self.sector_percentage else []
+        
+        # Determine the maximum length
+        max_len = max(len(codes), len(narratives), len(vocabularies), len(percentages))
+        
+        for i in range(max_len):
+            sector_info.append({
+                'sector_code': codes[i] if i < len(codes) else None,
+                'sector_narrative': narratives[i] if i < len(narratives) else None,
+                'sector_vocabulary': vocabularies[i] if i < len(vocabularies) else None,
+                'sector_percentage': percentages[i] if i < len(percentages) else None
+            })
+        
+        # Filter out entries with None for all fields
+        return [s for s in sector_info if any(v is not None for v in s.values())]
+    
+    def get_sectors_by_vocabulary(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get sector information grouped by vocabulary.
+        
+        This is the SAFEST way to work with sector data from an activity,
+        as it prevents mixing codes from different vocabularies.
+        
+        Returns:
+            Dictionary mapping vocabulary codes to lists of sector info
+            for that vocabulary.
+            
+        Example:
+            {
+                "98": [
+                    {"sector_code": "10", "sector_narrative": "Protection", "sector_percentage": 40.0},
+                    {"sector_code": "111", "sector_narrative": "Law and Policy", "sector_percentage": 10.0}
+                ],
+                "10": [
+                    {"sector_code": "1", "sector_narrative": "Protection Cluster", "sector_percentage": 50.0}
+                ]
+            }
+        """
+        sectors_by_vocab = {}
+        
+        for sector in self.get_sector_info():
+            vocab = sector.get('sector_vocabulary')
+            if vocab is None:
+                # Use a special key for sectors without vocabulary
+                vocab = "__unknown__"
+            
+            if vocab not in sectors_by_vocab:
+                sectors_by_vocab[vocab] = []
+            sectors_by_vocab[vocab].append(sector)
+        
+        return sectors_by_vocab
+    
+    def get_unhcr_sectors(self) -> List[Dict[str, Any]]:
+        """
+        Get only UNHCR-specific sectors (vocabulary 98) from this activity.
+        
+        UNHCR's primary sector classification uses vocabulary 98.
+        This method filters to only those sectors.
+        
+        Returns:
+            List of sector info dictionaries for UNHCR-specific sectors.
+        """
+        return self.get_sectors_by_vocabulary().get("98", [])
+    
+    def has_mixed_vocabularies(self) -> bool:
+        """
+        Check if this activity has sectors from multiple vocabularies.
+        
+        Returns:
+            True if the activity has sectors from more than one vocabulary,
+            False otherwise.
+        """
+        vocabularies = self.get_sectors_by_vocabulary().keys()
+        return len(vocabularies) > 1
+    
+    def validate_sector_aggregation(self, target_vocabulary: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Validate if sector data from this activity can be safely aggregated.
+        
+        Args:
+            target_vocabulary: Optional specific vocabulary to check against.
+                            If None, checks if all sectors are from a single vocabulary.
+        
+        Returns:
+            Dictionary with validation result including:
+            - valid: Whether aggregation is safe
+            - vocabularies: List of vocabularies present
+            - error: Error message if invalid
+            - recommendation: Suggested fix
+        """
+        from unhcr_iati_mcp.resources.sectors import SECTOR_VOCABULARY_METADATA
+        
+        sectors_by_vocab = self.get_sectors_by_vocabulary()
+        vocabularies = list(sectors_by_vocab.keys())
+        
+        # Remove the unknown vocabulary marker
+        vocabularies = [v for v in vocabularies if v != "__unknown__"]
+        
+        if not vocabularies:
+            return {
+                'valid': True,
+                'vocabularies': [],
+                'message': 'No sectors with known vocabularies'
+            }
+        
+        if target_vocabulary:
+            # Check if all sectors are from the target vocabulary
+            if len(vocabularies) == 1 and vocabularies[0] == target_vocabulary:
+                return {
+                    'valid': True,
+                    'vocabularies': vocabularies,
+                    'message': f'All sectors are from vocabulary {target_vocabulary}'
+                }
+            else:
+                return {
+                    'valid': False,
+                    'vocabularies': vocabularies,
+                    'error': f'Activity has sectors from vocabularies {vocabularies}, cannot aggregate with target {target_vocabulary}',
+                    'severity': 'CRITICAL',
+                    'recommendation': f'Filter to only sectors from vocabulary {target_vocabulary} before aggregation'
+                }
+        
+        # Check if all sectors are from a single vocabulary
+        if len(vocabularies) == 1:
+            vocab_code = vocabularies[0]
+            vocab_name = SECTOR_VOCABULARY_METADATA.get(vocab_code, {}).get('name', vocab_code)
+            return {
+                'valid': True,
+                'vocabularies': vocabularies,
+                'vocabulary_name': vocab_name,
+                'message': f'All sectors are from vocabulary {vocab_code} ({vocab_name})'
+            }
+        
+        # Multiple vocabularies - cannot safely aggregate without filtering
+        vocab_names = [SECTOR_VOCABULARY_METADATA.get(v, {}).get('name', v) for v in vocabularies]
+        return {
+            'valid': False,
+            'vocabularies': vocabularies,
+            'vocabulary_names': vocab_names,
+            'error': f'Activity has sectors from multiple vocabularies: {vocab_names}',
+            'severity': 'CRITICAL',
+            'recommendation': 'Filter to a single vocabulary before aggregation. For UNHCR analysis, use vocabulary 98.'
+        }
 
 
 class ActivitySummary(BaseModel):
