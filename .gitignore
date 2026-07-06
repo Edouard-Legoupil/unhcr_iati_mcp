@@ -16,4 +16,6 @@ src/unhcr_iati_mcp/models/generated/__pycache__/*
 src/unhcr_iati_mcp/tools/__pycache__/*
 src/unhcr_iati_mcp/observability/__pycache__/*
 
-
+tests/__pycache__/*
+tests/direct_api/results/*
+src/unhcr_iati_mcp/auth/__pycache__/*
