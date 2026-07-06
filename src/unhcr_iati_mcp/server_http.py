@@ -21,7 +21,7 @@ import json
 import time
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -30,6 +30,7 @@ from unhcr_iati_mcp.auth.oauth import OAuthServer
 from unhcr_iati_mcp.config import settings
 from unhcr_iati_mcp.context import mcp, iati_client, unhcr_filter
 from unhcr_iati_mcp.observability.logging import configure_logging, get_logger
+from unhcr_iati_mcp.observability.metrics import configure_metrics
 
 
 logger = get_logger(__name__)
@@ -224,6 +225,35 @@ async def health_check():
 
 
 # ============================================================================
+# Prometheus Metrics Endpoint
+# ============================================================================
+
+@app.get("/metrics")
+async def get_metrics():
+    """
+    Prometheus Metrics Endpoint.
+    
+    Exposes Prometheus-compatible metrics for scraping.
+    This endpoint returns metrics in the standard Prometheus text format.
+    """
+    try:
+        from unhcr_iati_mcp.observability.metrics import prometheus_metrics
+        metrics_data = prometheus_metrics()
+        return Response(
+            content=metrics_data,
+            media_type="text/plain",
+            headers={"Content-Type": "text/plain; version=0.0.4; charset=utf-8"}
+        )
+    except Exception as e:
+        logger.error(f"Error generating metrics: {e}")
+        return Response(
+            content=f"# Error generating metrics: {e}\n",
+            media_type="text/plain",
+            status_code=500
+        )
+
+
+# ============================================================================
 # MCP JSON-RPC Endpoint
 # ============================================================================
 
@@ -405,8 +435,17 @@ async def _read_resource(uri: str) -> dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
-    configure_logging()
+    configure_logging(
+        level=settings.log_level,
+        log_dir=settings.log_dir,
+        log_file=settings.log_file
+    )
+    configure_metrics(
+        metrics_dir=settings.metrics_dir,
+        metrics_file=settings.metrics_file
+    )
     logger.info("Starting UNHCR IATI MCP HTTP Server")
     logger.info(f"Host: {settings.host}, Port: {settings.port}")
     logger.info(f"OAuth: {'enabled' if settings.use_builtin_oauth else 'disabled'}")
+    logger.info("Metrics endpoint available at /metrics")
     uvicorn.run(app, host=settings.host, port=settings.port, log_level=settings.log_level.lower())

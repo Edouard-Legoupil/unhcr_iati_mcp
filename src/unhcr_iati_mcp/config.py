@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -27,6 +29,12 @@ class Settings(BaseSettings):
     
     # Logging
     log_level: str = "INFO"
+    log_dir: str = "logs"
+    log_file: Optional[str] = None
+    
+    # Metrics
+    metrics_dir: str = "metrics"
+    metrics_file: Optional[str] = None
     
     class Config:
         env_file = ".env"
