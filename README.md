@@ -11,8 +11,69 @@ This MCP server provides AI agents and applications with structured access to UN
 - **Budgets**: Planned funding allocations
 - **Donors**: Funding organizations
 - **Countries**: Recipient countries and regions
-- **Sectors**: Humanitarian sectors (health, education, WASH, etc.)
+- **Sectors**: Humanitarian sectors (health, education, WASH, etc.) with **vocabulary management**
+- **Results**: Complete IATI result framework (Output, Outcome, Impact levels) with indicators
 - **SDGs**: Sustainable Development Goals mapping
+
+## 🎯 Key Features
+
+### ✅ Sector Vocabulary Management
+
+**CRITICAL**: Sector codes have different meanings across IATI vocabularies. The same code (e.g., "10") in vocabulary 10 (IASC) means something different from code "10" in vocabulary 98 (UNHCR-specific).
+
+**Supported Vocabularies:**
+- **98**: UNHCR-specific sectors (PRIMARY for UNHCR analysis)
+- **10**: IASC Humanitarian Clusters
+- **1**: OECD DAC CRS Purpose Codes (5-digit)
+- **2**: OECD DAC CRS Purpose Codes (3-digit)
+- **99**: Reporting Organisation (organisation-specific)
+
+**Safety Features:**
+- ✅ Automatic vocabulary detection and warnings
+- ✅ Methods to group sectors by vocabulary (`get_sectors_by_vocabulary()`)
+- ✅ Validation to prevent cross-vocabulary aggregation
+- ✅ Comprehensive guidelines for correct analysis
+
+### ✅ Result Framework Support
+
+Complete support for IATI's hierarchical result framework:
+
+**Result Levels:**
+- **Impact (3)**: Long-term outcomes (global level)
+- **Outcome (2)**: Medium-term results (country/operation level) - **16 UNHCR Operational Areas**
+- **Output (1)**: Short-term deliverables (activity level)
+- **Other (9)**: Another type of result
+
+**UNHCR's 16 Operational Areas:**
+1. Protection (OA1) | 2. Solutions (OA2) | 3. Health (OA3) | 4. Education (OA4)
+5. Livelihoods (OA5) | 6. Shelter and Settlements (OA6) | 7. WASH (OA7) | 8. Food Security (OA8)
+9. Multi-sector (OA9) | 10. Leadership/Coordination (OA10) | 11. Emergency Response (OA11) | 12. Advocacy/Legal (OA12)
+13. Community Empowerment (OA13) | 14. Inclusion (OA14) | 15. Gender Equality (OA15) | 16. Age and Diversity (OA16)
+
+**Indicator Support:**
+- ✅ 5 measure types: Unit, Percentage, Nominal, Ordinal, Qualitative
+- ✅ Baseline, target, and actual values
+- ✅ Disaggregation dimensions (sex, age, disability, location, etc.)
+- ✅ Progress percentage and deviation calculations
+- ✅ Quantitative vs qualitative filtering
+
+### ✅ Comprehensive Code Tables
+
+All **41 IATI code lookup tables** are now embedded in the package:
+- Activity codes (date type, scope, status)
+- Organisation codes (identifier, registration agency, role, type)
+- Geographic codes (country, region, location class)
+- Financial codes (aid type, budget, flow type, earmarking, currency)
+- Sector codes (sector, category, vocabulary)
+- Policy codes (policy marker, humanitarian scope, clusters)
+- Result codes (indicator, result types, indicator vocabulary)
+- SDG codes (goals, targets)
+
+**Features:**
+- ✅ Pre-loaded essential tables at startup
+- ✅ Lazy loading for all other tables
+- ✅ In-memory caching for performance
+- ✅ MCP resources for introspection (`unhcr://codes/metadata`, `unhcr://codes/available`, etc.)
 
 ## Table of Contents
 
@@ -112,15 +173,23 @@ unhcr_iati_mcp/
 │       │   ├── export.py                # Data export tools (CSV, JSON, XML)
 │       │   └── health.py                # Health check and monitoring tools
 │       │
+│       ├── data/                        # Static data files
+│       │   ├── __init__.py
+│       │   └── codelists/               # IATI code lookup tables (41 .RData files)
+│       │       ├── __init__.py          # Code tables documentation
+│       │       └── *.RData              # RData files for all IATI code tables
+│       │
 │       ├── resources/                  # MCP resources (static reference data)
 │       │   ├── __init__.py
 │       │   ├── donors.py                # Donor code to name mapping
 │       │   ├── countries.py             # Country reference data
-│       │   ├── sectors.py               # Sector reference data
+│       │   ├── sectors.py               # Sector reference data and vocabulary management
+│       │   ├── results.py               # Result framework and indicator resources
 │       │   ├── sdgs.py                  # SDG reference data
 │       │   ├── glossary.py              # IATI terminology glossary
 │       │   ├── portfolio.py             # UNHCR portfolio metadata
-│       │   └── schemas.py               # Data schema definitions
+│       │   ├── schemas.py               # Data schema definitions
+│       │   └── code_tables.py           # All 41 IATI code lookup tables as MCP resources
 │       │
 │       └── observability/              # Monitoring and observability
 │           ├── __init__.py
@@ -346,11 +415,24 @@ Static and reference data accessible via MCP resource URIs:
 |-----|-------------|--------|
 | `unhcr://donors` | Donor code to name mapping | JSON object |
 | `unhcr://countries` | Country reference data | JSON object |
-| `unhcr://sectors` | Sector code to name mapping | JSON object |
+| `unhcr://sectors` | UNHCR-specific sector code to name mapping (Vocabulary 98) | JSON object |
+| `unhcr://sector_vocabularies` | Metadata about all IATI sector vocabularies with warnings | JSON object |
+| `unhcr://sector_analysis_guidelines` | Comprehensive guidelines for correct sector data analysis | JSON object |
+| `unhcr://sector_vocabulary_warnings` | Quick-reference warnings for each vocabulary | JSON object |
+| `unhcr://result_types` | IATI result type codes (Output, Outcome, Impact, Other) | JSON object |
+| `unhcr://indicator_measures` | IATI indicator measure codes (Unit, Percentage, Nominal, Ordinal, Qualitative) | JSON object |
+| `unhcr://result_areas` | UNHCR's 16 Operational Areas (OA) at outcome level | JSON object |
+| `unhcr://result_analysis_guidelines` | Guidelines for correct result data analysis | JSON object |
+| `unhcr://disaggregation_dimensions` | Common disaggregation dimensions (sex, age, disability, etc.) | JSON object |
 | `unhcr://sdgs` | Sustainable Development Goals mapping | JSON object |
 | `unhcr://glossary` | IATI terminology glossary | JSON object |
 | `unhcr://portfolio` | UNHCR portfolio metadata | JSON object |
 | `unhcr://schemas` | Data schema definitions | JSON object |
+| `unhcr://codes/metadata` | Metadata about all 41 IATI code tables | JSON object |
+| `unhcr://codes/available` | List of all available code table names | JSON array |
+| `unhcr://codes/essential` | List of essential (pre-loaded) code tables | JSON array |
+| `unhcr://codes/cache_status` | Current status of the code table cache | JSON object |
+| `unhcr://codes/*` | All 41 IATI code lookup tables (activity, organisation, geographic, financial, sector, policy, result) | JSON array |
 
 ### Example Usage
 
@@ -468,7 +550,7 @@ from unhcr_iati_mcp.client import (
 
 ### Activity
 
-Represents an IATI activity (project/program):
+Represents an IATI activity (project/program) with full result framework support:
 
 ```python
 from unhcr_iati_mcp.models.activity import Activity
@@ -479,8 +561,34 @@ class Activity(BaseModel):
     description_narrative: List[str] = []         # Descriptions
     recipient_country_code: List[str] = []        # ISO country codes
     sector_code: List[str] = []                   # Sector codes
+    sector_vocabulary: List[str] = []            # Sector vocabulary codes (1, 2, 10, 98, 99)
+    sector_percentage: List[float] = []          # Sector percentage allocations
     reporting_org_ref: List[str] = []             # Publishing organization
+    
+    # Result Framework Data
+    result_type: List[str] = []                  # Result type codes (1=Output, 2=Outcome, 3=Impact)
+    result_title_narrative: List[str] = []       # Result titles
+    result_indicator_ref: List[str] = []          # Indicator references
+    result_indicator_title_narrative: List[str] = []  # Indicator titles
+    result_indicator_measure: List[str] = []      # Indicator measure types (1-5)
+    result_indicator_baseline_value: List[str] = []  # Baseline values
+    result_indicator_period_target_value: List[str] = []  # Target values
+    result_indicator_period_actual_value: List[str] = []  # Actual values
 ```
+
+**Activity Methods:**
+- `get_sector_info()` - Get structured sector data
+- `get_sectors_by_vocabulary()` - Group sectors by vocabulary (SAFEST approach)
+- `get_unhcr_sectors()` - Filter to UNHCR vocabulary 98
+- `has_mixed_vocabularies()` - Check for multiple vocabularies
+- `validate_sector_aggregation()` - Validate before aggregating
+- `get_result_info()` - Get structured result data
+- `get_indicator_info()` - Get structured indicator data
+- `get_results_with_indicators()` - Results with associated indicators
+- `get_indicators_by_type()` - Group indicators by result type
+- `get_quantitative_indicators()` - Filter to quantitative indicators
+- `get_qualitative_indicators()` - Filter to qualitative indicators
+- `has_results_framework()` - Check if activity has result data
 
 ### Budget
 
@@ -510,6 +618,53 @@ class Transaction(BaseModel):
     transaction_type: List[str] = []              # Type codes
     provider_org_ref: List[str] = []              # Providing organization
     receiver_org_ref: List[str] = []              # Receiving organization
+```
+
+### Sector Models
+
+Comprehensive sector data with vocabulary management:
+
+```python
+from unhcr_iati_mcp.models.sector import (
+    SectorInfo, SectorSummary, SectorVocabularySummary,
+    SectorAnalysisResult, SectorValidationResult, CrossVocabularySectorPair
+)
+
+class SectorInfo(BaseModel):
+    sector_code: str
+    sector_narrative: str
+    sector_vocabulary: str  # CRITICAL: Always check this field!
+    sector_percentage: float
+```
+
+### Result Framework Models
+
+Complete IATI result framework support:
+
+```python
+from unhcr_iati_mcp.models.result import (
+    Result, ResultSummary, Indicator, IndicatorSummary,
+    IndicatorPeriod, Dimension, DimensionGroup,
+    ResultFrameworkSummary, ResultIndicatorAnalysis,
+    ResultValidationResult, UNHCRResultArea, UNHCRIndicator
+)
+
+class Result(BaseModel):
+    result_type: str  # 1=Output, 2=Outcome, 3=Impact, 9=Other
+    result_title_narrative: str
+    result_aggregation_status: Optional[bool]
+
+class Indicator(BaseModel):
+    indicator_ref: Optional[str]
+    indicator_title_narrative: str
+    indicator_measure: str  # 1=Unit, 2=Percentage, 3=Nominal, 4=Ordinal, 5=Qualitative
+    baseline_value: Optional[str]
+    period_target_value: Optional[str]
+    period_actual_value: Optional[str]
+
+class UNHCRResultArea(BaseModel):
+    code: str  # OA1-OA16
+    name: str  # Protection, Solutions, Health, Education, etc.
 ```
 
 ### Response Models
@@ -657,6 +812,8 @@ await client.call_tool("unhcr_top_donors", {"top_n": 10})
 - "Show me UNHCR education projects"
 - "Which countries receive the most UNHCR funding?"
 - "Get sector distribution for UNHCR activities"
+- "What is UNHCR's sector vocabulary 98?"
+- "What are the warnings about sector vocabulary aggregation?"
 
 **AI translates to:**
 ```python
@@ -671,6 +828,51 @@ await client.call_tool("unhcr_activity_by_sector", {
 
 # "Which countries receive the most UNHCR funding?"
 await client.call_tool("unhcr_top_countries", {"top_n": 15})
+
+# "What is UNHCR's sector vocabulary 98?"
+# Access the sector_vocabularies resource
+vocabularies = await client.read_resource("unhcr://sector_vocabularies")
+unhcr_vocab = vocabularies.get("98")
+
+# "What are the warnings about sector vocabulary aggregation?"
+guidelines = await client.read_resource("unhcr://sector_analysis_guidelines")
+warnings = guidelines.get("general_rules", {}).get("rule_1", {})
+```
+
+### Result Framework Queries
+
+**Natural Language:**
+- "What are UNHCR's output-level results?"
+- "Show me outcome indicators for UNHCR projects"
+- "What are the 16 UNHCR Operational Areas?"
+- "Get progress tracking for UNHCR indicators"
+- "Show me indicators with disaggregation by sex and age"
+
+**AI translates to:**
+```python
+# "What are UNHCR's output-level results?"
+# Filter activities by result type = 1 (Output)
+await client.call_tool("unhcr_activities", {"rows": 100})
+# Then filter results by type in the response
+
+# "Show me outcome indicators for UNHCR projects"
+# Outcome = result type 2
+activities = await client.call_tool("unhcr_activities", {"rows": 100})
+for activity in activities["response"]["docs"]:
+    results_data = activity.get("result_type", [])
+    indicators = activity.get("result_indicator_title_narrative", [])
+    
+# "What are the 16 UNHCR Operational Areas?"
+result_areas = await client.read_resource("unhcr://result_areas")
+
+# "Get progress tracking for UNHCR indicators"
+# Use the result framework resources
+result_types = await client.read_resource("unhcr://result_types")
+indicator_measures = await client.read_resource("unhcr://indicator_measures")
+
+# "Show me indicators with disaggregation by sex and age"
+# Check disaggregation dimensions resource
+dimensions = await client.read_resource("unhcr://disaggregation_dimensions")
 ```
 
 ### Advanced Queries
@@ -735,6 +937,109 @@ await client.call_tool("unhcr_activity_search", {
 
 ---
 
+## 📚 Best Practices & Common Pitfalls
+
+### Sector Data Analysis
+
+**❌ DON'T:**
+```python
+# WRONG: Aggregating across different vocabularies
+from collections import Counter
+sector_counter = Counter()
+for activity in activities:
+    for code in activity["sector_code"]:
+        sector_counter[code] += 1  # This is WRONG!
+```
+
+**✅ DO:**
+```python
+# CORRECT: Group by vocabulary first
+from collections import defaultdict
+sectors_by_vocab = defaultdict(lambda: defaultdict(int))
+for activity in activities:
+    for code, vocab in zip(activity["sector_code"], activity["sector_vocabulary"]):
+        sectors_by_vocab[vocab][code] += 1
+
+# Then analyze each vocabulary separately
+for vocab, sectors in sectors_by_vocab.items():
+    print(f"Vocabulary {vocab}: {dict(sectors)}")
+```
+
+### Result Framework Analysis
+
+**✅ DO:**
+```python
+# Use the Activity model's built-in methods
+activity = Activity(**activity_data)
+
+# Get results with their indicators (SAFEST approach)
+results_with_indicators = activity.get_results_with_indicators()
+
+# Group indicators by result type
+indicators_by_type = activity.get_indicators_by_type()
+
+# Filter to quantitative indicators only
+quantitative = activity.get_quantitative_indicators()
+
+# Calculate progress (using utility functions)
+from unhcr_iati_mcp.resources.results import calculate_progress_percentage
+progress = calculate_progress_percentage(
+    baseline=50.0,
+    target=100.0,
+    actual=75.0
+)  # Returns 50.0
+```
+
+**❌ DON'T:**
+```python
+# WRONG: Mixing result types without context
+all_indicators = []
+for activity in activities:
+    all_indicators.extend(activity["result_indicator_measure"])
+    all_indicators.extend(activity["result_indicator_baseline_value"])
+    # This loses the relationship between indicators and results!
+```
+
+### Working with Code Tables
+
+**✅ DO:**
+```python
+# Access code tables via MCP resources
+# Essential tables are pre-loaded
+countries = await client.read_resource("unhcr://codes/country")
+
+# Or use the client directly
+from unhcr_iati_mcp.resources.code_tables import _load_code_table
+countries = _load_code_table("codeCountry")
+
+# Check what tables are available
+available = await client.read_resource("unhcr://codes/available")
+metadata = await client.read_resource("unhcr://codes/metadata")
+```
+
+### Caching and Performance
+
+**✅ DO:**
+```python
+# Code tables are cached automatically
+# First call loads from disk, subsequent calls use cache
+countries1 = _load_code_table("codeCountry")  # Loads from disk
+countries2 = _load_code_table("codeCountry")  # Returns cached
+
+# Check cache status
+cache_status = await client.read_resource("unhcr://codes/cache_status")
+print(f"Cache size: {cache_status['cache_size']} entries")
+```
+
+**✅ DO:** Use lazy loading for non-essential tables
+```python
+# Non-essential tables are loaded on-demand
+# They are cached after first load
+special_table = _load_code_table("codeSomeSpecialTable")
+```
+
+---
+
 ---
 
 ## Troubleshooting
@@ -749,6 +1054,11 @@ await client.call_tool("unhcr_activity_search", {
 | Rate limit errors | Too many requests | Implement caching, use `fetch_all` with smaller batches |
 | Authentication errors | Invalid API key | Verify your IATI API key is correct |
 | Empty results | Incorrect filter | Check `UNHCR_PUBLISHER_REF` is set to `XM-DAC-41121` |
+| Sector aggregation errors | Mixing vocabularies | Use `get_sectors_by_vocabulary()` to group by vocabulary first |
+| Result framework parsing | Missing result fields | Use Activity model's `get_results_with_indicators()` method |
+| Code table not found | Table not in data/codelists/ | Check available tables with `unhcr://codes/available` |
+| Cache issues | Stale code table data | Use `reload_code_tables()` or restart server |
+| Invalid indicator data | Non-numeric values for quantitative | Use `validate_indicator_data()` to check data quality |
 
 ### Debug Mode
 
