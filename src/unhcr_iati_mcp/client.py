@@ -392,6 +392,24 @@ class IATIClient:
             "data": data,
         }
 
+    async def metadata_data_availability(
+        self,
+        q: str,
+        rows: int | None = None,
+        start: int = 0,
+        fl: str = "*",
+    ) -> dict[str, Any]:
+        """
+        Query the metadata_data_availability collection.
+        """
+        return await self.query(
+            collection="metadata_data_availability",
+            q=q,
+            rows=rows or settings.page_size,
+            start=start,
+            fl=fl,
+        )
+
     async def activities(
         self,
         q: str,

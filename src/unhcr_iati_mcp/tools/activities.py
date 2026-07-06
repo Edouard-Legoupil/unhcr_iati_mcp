@@ -2,6 +2,7 @@
 Activity-related tools for querying UNHCR activities from IATI Datastore.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List
 
 from unhcr_iati_mcp.context import (
@@ -25,6 +26,97 @@ def _handle_error(error: Exception, tool_name: str) -> Dict[str, Any]:
         "error": str(error),
         "tool": tool_name,
         "success": False
+    }
+
+
+DEFAULT_SUMMARY_ROWS = 5
+METADATA_ROW_LIMIT = 200
+
+
+def _parse_iso_timestamp(value: str | None) -> datetime | None:
+    if not value or not isinstance(value, str):
+        return None
+
+    clean = value.rstrip("Z")
+
+    try:
+        return datetime.fromisoformat(clean)
+    except ValueError:
+        return None
+
+
+async def _fetch_country_availability(country_code: str) -> list[Dict[str, Any]]:
+    q = (
+        f"{unhcr_filter()} "
+        f"AND location_code:\"{country_code}\""
+    )
+
+    try:
+        payload = await iati_client.metadata_data_availability(
+            q=q,
+            rows=METADATA_ROW_LIMIT,
+            fl=(
+                "location_code,reference_period_start,"
+                "reference_period_end,admin_level,category"
+            ),
+        )
+    except IATIError as exc:
+        logger.warning(
+            "Failed to fetch metadata availability for %s: %s",
+            country_code,
+            exc,
+        )
+        return []
+    except Exception as exc:
+        logger.exception(
+            "Unexpected error fetching metadata availability for %s",
+            country_code,
+        )
+        return []
+
+    return (
+        payload
+        .get("response", {})
+        .get("docs", [])
+    )
+
+
+def _summarize_coverage(country_code: str, docs: list[Dict[str, Any]]) -> Dict[str, Any]:
+    earliest_date = None
+    earliest_ref = None
+    latest_date = None
+    latest_ref = None
+    categories = set()
+    admin_levels = set()
+
+    for doc in docs:
+        start_raw = doc.get("reference_period_start")
+        end_raw = doc.get("reference_period_end")
+
+        start_dt = _parse_iso_timestamp(start_raw)
+        end_dt = _parse_iso_timestamp(end_raw)
+
+        if start_dt and (earliest_date is None or start_dt < earliest_date):
+            earliest_date = start_dt
+            earliest_ref = start_raw
+
+        if end_dt and (latest_date is None or end_dt > latest_date):
+            latest_date = end_dt
+            latest_ref = end_raw
+
+        if isinstance(doc.get("category"), str):
+            categories.add(doc["category"])
+
+        if admin := doc.get("admin_level"):
+            admin_levels.add(str(admin))
+
+    return {
+        "country_code": country_code,
+        "coverage_records": len(docs),
+        "earliest_reference_period_start": earliest_ref,
+        "latest_reference_period_end": latest_ref,
+        "categories": sorted(categories),
+        "admin_levels": sorted(admin_levels),
     }
 
 
@@ -110,6 +202,54 @@ async def unhcr_activity_by_country(
         return _handle_error(e, "unhcr_activity_by_country")
     except Exception as e:
         return _handle_error(e, "unhcr_activity_by_country")
+
+
+@mcp.tool(
+    name="unhcr_activity_by_country_summary",
+    description="Summarize metadata coverage before returning a small sample of country activities."
+)
+async def unhcr_activity_by_country_summary(
+    country_code: str,
+    rows: int = DEFAULT_SUMMARY_ROWS
+) -> Dict[str, Any]:
+    """Return activity coverage summary and the latest rows for a country."""
+    metadata_docs = await _fetch_country_availability(country_code)
+    coverage = _summarize_coverage(country_code, metadata_docs)
+
+    q = (
+        f'{unhcr_filter()} '
+        f'AND recipient_country_code:"{country_code}"'
+    )
+
+    if (
+        coverage.get("earliest_reference_period_start")
+        and coverage.get("latest_reference_period_end")
+    ):
+        q += (
+            f' AND activity_date_iso_date:['
+            f'{coverage["earliest_reference_period_start"]} TO '
+            f'{coverage["latest_reference_period_end"]}]'
+        )
+
+    try:
+        activities = await iati_client.query(
+            collection="activity",
+            q=q,
+            rows=rows,
+        )
+    except IATIError as e:
+        return _handle_error(e, "unhcr_activity_by_country_summary")
+    except Exception as e:
+        return _handle_error(e, "unhcr_activity_by_country_summary")
+
+    return {
+        "coverage_summary": coverage,
+        "activities": (
+            activities.get("response", {})
+            .get("docs", [])
+        ),
+        "query": q,
+    }
 
 
 @mcp.tool(
