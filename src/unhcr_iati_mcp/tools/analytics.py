@@ -770,3 +770,26 @@ async def unhcr_analytical_questions_summary(
         },
         "results": results
     }
+
+
+@mcp.tool(
+    name="unhcr_portfolio_summary",
+    description="Retrieve a combined summary of activities, budgets, and transactions."
+)
+async def unhcr_portfolio_summary() -> Dict[str, Any]:
+    """Retrieve a quick portfolio summary including activities, budgets, and transactions."""
+    # Import dependent tools
+    from unhcr_iati_mcp.tools.activities import unhcr_activities
+    from unhcr_iati_mcp.tools.budgets import unhcr_budgets
+    from unhcr_iati_mcp.tools.transactions import unhcr_transactions
+
+    # Fetch minimal sample of activities, budgets, and transactions
+    activities = await unhcr_activities(rows=1)
+    budgets = await unhcr_budgets()
+    transactions = await unhcr_transactions()
+
+    return {
+        "activities": activities,
+        "budgets": budgets,
+        "transactions": transactions,
+    }

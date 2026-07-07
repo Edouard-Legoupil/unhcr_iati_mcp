@@ -316,10 +316,13 @@ async def unhcr_activity_by_country(
     try:
         # Resolve country code from name or ISO code
         resolved_code = _resolve_country_code(country_code)
-        
+        # Include identifier filter to match UNHCR IATI identifiers for the country
+        identifier_filter_str = unhcr_identifier_filter(country_code=resolved_code)
+
         q = (
             f'{unhcr_filter()} '
-            f'AND recipient_country_code:"{resolved_code}"'
+            f'AND recipient_country_code:"{resolved_code}" '
+            f'AND {identifier_filter_str}'
         )
 
         return await iati_client.query(
@@ -346,9 +349,12 @@ async def unhcr_activity_by_country_summary(
     metadata_docs = await _fetch_country_availability(country_code)
     coverage = _summarize_coverage(country_code, metadata_docs)
 
+    # Include identifier filter for precise IATI identifier matching
+    identifier_filter_str = unhcr_identifier_filter(country_code=country_code)
     q = (
         f'{unhcr_filter()} '
-        f'AND recipient_country_code:"{country_code}"'
+        f'AND recipient_country_code:"{country_code}" '
+        f'AND {identifier_filter_str}'
     )
 
     if (
@@ -437,12 +443,14 @@ async def unhcr_activity_by_year(
             f'{year}-12-31T23:59:59Z]'
         )
 
-        return await iati_client.query(
+        # Query and return only the list of activity docs for the specified year
+        resp = await iati_client.query(
             collection="activity",
             q=q,
             rows=rows,
             start=start
         )
+        return resp.get("response", {}).get("docs", [])
     except IATIError as e:
         return _handle_error(e, "unhcr_activity_by_year")
     except Exception as e:

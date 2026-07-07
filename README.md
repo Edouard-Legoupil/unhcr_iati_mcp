@@ -1,6 +1,8 @@
 # UNHCR IATI MCP Server
 
-A Model Context Protocol (MCP) server for accessing UNHCR's IATI (International Aid Transparency Initiative) data from the official IATI Datastore API.
+A Model Context Protocol (MCP) server for accessing [UNHCR's IATI (International Aid Transparency Initiative) data](https://www.unhcr.org/iati-international-aid-transparency-initiative) from the official IATI Datastore API.
+
+This project builds upon previous [data exploration done in R](https://github.com/Edouard-Legoupil/iati).
 
 ## Overview
 
