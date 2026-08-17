@@ -14,5 +14,7 @@ dependencies=[
   "uvicorn[standard]",
   "cryptography",
   "python-multipart",
-  "pyreadr"
+  "pyreadr",
+  "pyjwt>=2.0.0",
+  "python-jose[cryptography]>=3.0.0"
 ]

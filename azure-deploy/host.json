@@ -1,0 +1,34 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "excludedTypes": "Request"
+      },
+      "enableLiveMetrics": true
+    }
+  },
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.0.0, 5.0.0)"
+  },
+  "functionTimeout": "00:10:00",
+  "functions": {
+    "mcp": {
+      "maxConcurrentRequests": 100,
+      "maxOutstandingRequests": 200
+    },
+    "oauth_token": {
+      "maxConcurrentRequests": 50,
+      "maxOutstandingRequests": 100
+    }
+  },
+  "healthMonitor": {
+    "enabled": true,
+    "healthCheckPath": "/api/health",
+    "healthCheckInterval": "00:00:30",
+    "healthCheckWindow": "00:02:00",
+    "healthCheckThreshold": 3
+  }
+}

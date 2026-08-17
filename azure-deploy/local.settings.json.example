@@ -1,0 +1,60 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "FUNCTIONS_EXTENSION_VERSION": "~4",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "PYTHON_VERSION": "3.12",
+    
+    // UNHCR IATI MCP Server Configuration
+    "IATI_API_KEY": "YOUR_IATI_SUBSCRIPTION_KEY",
+    "IATI_BASE_URL": "https://api.iatistandard.org/datastore",
+    "UNHCR_PUBLISHER_REF": "XM-DAC-41121",
+    
+    // Server Configuration
+    "MCP_TRANSPORT": "http",
+    "HOST": "0.0.0.0",
+    "PORT": "8000",
+    "RESOURCE_URL": "http://localhost:8000",
+    
+    // Authentication Configuration
+    "USE_BUILTIN_OAUTH": "true",
+    "AUTH_SERVER_URL": "",
+    "OAUTH_CLIENT_ID": "default",
+    "OAUTH_TOKEN_EXPIRY": "3600",
+    
+    // Azure Configuration
+    "AZURE_FUNCTION_APP": "false",
+    "WEBSITE_HOSTNAME": "localhost",
+    
+    // Environment
+    "ENVIRONMENT": "development",
+    "MCP_SERVER_NAME": "unhcr-iati-mcp",
+    "MCP_SERVER_VERSION": "0.0.1",
+    "UNHCR_API_VERSION": "1.0",
+    
+    // Logging
+    "LOG_LEVEL": "DEBUG",
+    "LOG_DIR": "logs",
+    "LOG_FILE": "",
+    
+    // Metrics
+    "METRICS_DIR": "metrics",
+    "METRICS_FILE": "",
+    
+    // Client Configuration
+    "TIMEOUT_SECONDS": "120",
+    "PAGE_SIZE": "1000"
+  },
+  "ConnectionStrings": {},
+  "Host": {
+    "LocalHttpPort": 7071,
+    "CORS": [
+      "*",
+      "http://localhost:*",
+      "https://copilotstudio.microsoft.com",
+      "https://*.copilotstudio.microsoft.com"
+    ],
+    "CORSCredentials": true
+  }
+}

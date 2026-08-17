@@ -71,24 +71,80 @@ def main():
         _run_http_server()
     else:
         logger.info("Starting in STDIO mode")
+        # For STDIO mode, still use the basic MCP server
         mcp.run()
 
 
 def _run_http_server():
-    """Run the HTTP server."""
+    """Run the HTTP server with Streamable HTTP transport for Copilot Studio."""
     import uvicorn
-    from unhcr_iati_mcp.server_http import app
+    from fastapi.middleware.cors import CORSMiddleware
+    from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
     
     logger.info(f"HTTP Server listening on {settings.host}:{settings.port}")
-    logger.info(f"Resource URL: {settings.resource_url or f'http://{settings.host}:{settings.port}'}")
+    logger.info(f"Resource URL: {settings.get_resource_url()}")
     logger.info(f"OAuth: {'enabled' if settings.use_builtin_oauth else 'disabled'}")
+    logger.info(f"Transport: streamable-http (for Copilot Studio compatibility)")
+    
+    # Create FastMCP app with Streamable HTTP transport
+    mcp_app = mcp.create_app()
+    
+    # Create HTTP app with Streamable HTTP transport
+    http_app = mcp_app.http_app(
+        transport="streamable-http",
+        path="/mcp",
+        stateless_http=True,
+        json_response=True,
+    )
+    
+    # Add CORS middleware for Copilot Studio
+    http_app.add_middleware(
+        StarletteCORSMiddleware,
+        allow_origins=[
+            "*",
+            "https://copilotstudio.microsoft.com",
+            "https://*.copilotstudio.microsoft.com",
+            "https://copilot.microsoft.com",
+            "https://*.copilot.microsoft.com",
+            "https://m365.cloud.microsoft",
+            "https://*.m365.cloud.microsoft",
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+        ],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+        allow_headers=["*"],
+        expose_headers=[
+            "Mcp-Session-Id",
+            "mcp-session-id",
+            "Content-Type",
+            "Content-Length"
+        ],
+        allow_credentials=True,
+        max_age=86400,
+    )
+    
+    # Configure SSL if certificates are provided
+    ssl_config = {}
+    if settings.ssl_certfile and settings.ssl_keyfile:
+        ssl_config = {
+            "ssl_keyfile": settings.ssl_keyfile,
+            "ssl_certfile": settings.ssl_certfile,
+        }
+        if settings.ssl_ca_certs:
+            ssl_config["ssl_ca_certs"] = settings.ssl_ca_certs
+        if settings.ssl_cert_reqs:
+            ssl_config["ssl_cert_reqs"] = settings.ssl_cert_reqs
+        logger.info(f"HTTPS enabled with certificate: {settings.ssl_certfile}")
+    else:
+        logger.warning("HTTPS not configured - Copilot Studio requires HTTPS for production")
     
     uvicorn.run(
-        app,
+        http_app,
         host=settings.host,
         port=settings.port,
         log_level=settings.log_level.lower(),
         access_log=True,
+        **ssl_config
     )
 
 

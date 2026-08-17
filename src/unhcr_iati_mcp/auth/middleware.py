@@ -35,16 +35,22 @@ class AuthMiddleware:
     """
     
     # Public endpoints that don't require authentication
+    # Copilot Studio requires these endpoints to be publicly accessible
     PUBLIC_PATHS = [
         "/health",
         "/.well-known/oauth-authorization-server",
         "/.well-known/jwks.json",
         "/.well-known/oauth-protected-resource",
+        "/.well-known/mcp/schema",  # MCP Schema Discovery endpoint
+        "/.well-known/mcp",          # MCP Protocol schema endpoint
+        "/.well-known/openapi.json", # OpenAPI schema redirect
         "/oauth/token",
         "/oauth/info",
         "/docs",
         "/openapi.json",
         "/redoc",
+        "/info",  # Server info endpoint
+        "/metrics",  # Prometheus metrics
     ]
     
     def __init__(self, oauth_server: Optional[Any] = None):

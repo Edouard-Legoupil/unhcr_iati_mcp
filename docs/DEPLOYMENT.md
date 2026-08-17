@@ -2,6 +2,205 @@
 
 This document provides comprehensive deployment instructions for the UNHCR IATI MCP Server.
 
+## 🚀 Azure Function App Deployment (Recommended for Copilot Studio)
+
+**⚠️ IMPORTANT**: For Microsoft Copilot Studio integration, you **MUST** deploy using Azure Function App with Streamable HTTP transport.
+
+### Prerequisites
+
+- **Azure Account** with Function App support
+- **Azure Functions Core Tools** (v4.x)
+- **Python 3.12+**
+- **Valid SSL Certificate** (Copilot Studio requires HTTPS)
+
+### Step 1: Create Azure Function App
+
+```bash
+# Login to Azure
+az login
+
+# Set your subscription
+az account set --subscription "Your-Subscription-Name"
+
+# Create resource group
+az group create --name unhcr-mcp-rg --location eastus
+
+# Create storage account (required for Function Apps)
+az storage account create \
+  --name unhcrmcpstorage \
+  --location eastus \
+  --resource-group unhcr-mcp-rg \
+  --sku Standard_LRS
+
+# Create Function App with Python 3.12
+az functionapp create \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --consumption-plan-location eastus \
+  --runtime python \
+  --runtime-version 3.12 \
+  --functions-version 4 \
+  --storage-account unhcrmcpstorage \
+  --os-type Linux
+```
+
+### Step 2: Configure SSL Certificate
+
+Copilot Studio **requires HTTPS**. You have two options:
+
+#### Option A: Azure Managed Certificate (Recommended)
+```bash
+# Enable managed certificate
+az functionapp config ssl create \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --certificate-name unhcr-iati-mcp-cert \
+  --server-name unhcr-iati-mcp.azurewebsites.net
+
+# Bind certificate to Function App
+az functionapp config ssl bind \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --certificate-name unhcr-iati-mcp-cert \
+  --ssl-type SNI
+```
+
+#### Option B: Bring Your Own Certificate
+```bash
+# Upload your certificate (PFX format)
+az functionapp config ssl upload \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --certificate-file your-certificate.pfx \
+  --certificate-password your-password
+
+# Bind certificate
+az functionapp config ssl bind \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --certificate-name your-certificate-name \
+  --ssl-type SNI
+```
+
+### Step 3: Deploy the MCP Server
+
+```bash
+# Navigate to your project directory
+cd unhcr_iati_mcp
+
+# Install Azure Functions Core Tools
+npm install -g azure-functions-core-tools@4
+
+# Create local settings file
+cp .env.example .env
+# Edit .env with your IATI API key
+
+# Deploy to Azure Function App
+func azure functionapp publish unhcr-iati-mcp \
+  --python
+
+# Or use Azure CLI
+az functionapp deployment source config-zip \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --src ./deploy.zip
+```
+
+### Step 4: Configure Environment Variables
+
+```bash
+# Set required environment variables
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --settings \
+    IATI_API_KEY="your-iati-subscription-key" \
+    IATI_BASE_URL="https://api.iatistandard.org/datastore" \
+    UNHCR_PUBLISHER_REF="XM-DAC-41121" \
+    MCP_TRANSPORT="http" \
+    USE_BUILTIN_OAUTH="true" \
+    AZURE_FUNCTION_APP="true"
+
+# Add custom domain (optional)
+az functionapp config hostname add \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg \
+  --hostname mcp.yourdomain.com
+```
+
+### Step 5: Configure Copilot Studio Connector
+
+1. **In Copilot Studio**:
+   - Go to **Connectors** > **Custom Connectors**
+   - Click **Create Custom Connector**
+   - Select **Model Context Protocol (MCP)**
+
+2. **Configure Connection**:
+   ```
+   Connector Name: UNHCR IATI MCP
+   Endpoint URL: https://unhcr-iati-mcp.azurewebsites.net/api/mcp
+   Authentication: OAuth 2.1
+   Client ID: default
+   Client Secret: [Your IATI API Key]
+   Token Endpoint: https://unhcr-iati-mcp.azurewebsites.net/oauth/token
+   Scope: iati:read
+   ```
+
+3. **Test Connection**:
+   - Click **Test Connection**
+   - Verify schema is retrieved successfully
+   - Verify tools are discovered
+
+### Step 6: Verify Deployment
+
+```bash
+# Check Function App status
+az functionapp show \
+  --name unhcr-iati-mcp \
+  --resource-group unhcr-mcp-rg
+
+# Test health endpoint
+curl https://unhcr-iati-mcp.azurewebsites.net/api/health
+
+# Test MCP schema endpoint
+curl https://unhcr-iati-mcp.azurewebsites.net/.well-known/mcp/schema
+
+# Test MCP endpoint
+curl -X POST https://unhcr-iati-mcp.azurewebsites.net/api/mcp \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+## 📋 Azure Configuration Reference
+
+### Required Environment Variables
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `IATI_API_KEY` | IATI Datastore API key | ✅ Yes | - |
+| `IATI_BASE_URL` | IATI Datastore base URL | ❌ No | `https://api.iatistandard.org/datastore` |
+| `UNHCR_PUBLISHER_REF` | UNHCR publisher reference | ❌ No | `XM-DAC-41121` |
+| `MCP_TRANSPORT` | Transport mode | ❌ No | `http` |
+| `USE_BUILTIN_OAUTH` | Enable built-in OAuth | ❌ No | `true` |
+| `AZURE_FUNCTION_APP` | Azure Function App mode | ❌ No | `false` |
+| `WEBSITE_HOSTNAME` | Function App hostname | ❌ No | Auto-detected |
+
+### Azure Function App Settings
+
+```json
+{
+  "APPINSIGHTS_INSTRUMENTATIONKEY": "...",
+  "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=...",
+  "FUNCTIONS_EXTENSION_VERSION": "~4",
+  "FUNCTIONS_WORKER_RUNTIME": "python",
+  "PYTHON_VERSION": "3.12",
+  "WEBSITE_RUN_FROM_PACKAGE": "1"
+}
+```
+
+---
+
 ## Quick Start
 
 ### Prerequisites

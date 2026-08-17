@@ -67,13 +67,30 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         headers=dict(exc.headers) if exc.headers else None,
     )
 
-# Add CORS middleware
+# Add CORS middleware for Copilot Studio compatibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "*",
+        "https://copilotstudio.microsoft.com",
+        "https://*.copilotstudio.microsoft.com",
+        "https://copilot.microsoft.com",
+        "https://*.copilot.microsoft.com",
+        "https://m365.cloud.microsoft",
+        "https://*.m365.cloud.microsoft",
+        "http://localhost:*",
+        "http://127.0.0.1:*",
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
+    expose_headers=[
+        "Mcp-Session-Id",
+        "mcp-session-id",
+        "Content-Type",
+        "Content-Length"
+    ],
+    max_age=86400,
 )
 
 # Add auth middleware
@@ -200,12 +217,21 @@ async def oauth_info():
 
 @app.get("/health")
 async def health_check():
-    """Health Check Endpoint."""
+    """Enhanced health check with Streamable HTTP verification."""
     try:
         from unhcr_iati_mcp.context import mcp
         mcp_status = "healthy" if mcp else "uninitialized"
+        
+        # Check Streamable HTTP transport is available
+        try:
+            mcp_app = mcp.create_app()
+            http_app = mcp_app.http_app(transport="streamable-http")
+            transport_ok = http_app is not None
+        except Exception:
+            transport_ok = False
     except Exception:
         mcp_status = "error"
+        transport_ok = False
     
     try:
         client_status = "healthy" if iati_client else "uninitialized"
@@ -216,10 +242,20 @@ async def health_check():
         "status": "ok",
         "service": "unhcr-iati-mcp",
         "version": "0.0.1",
-        "transport": "http",
+        "transport": "streamable-http",
+        "streamable_http_ready": transport_ok,
         "oauth": "built-in" if settings.use_builtin_oauth else "disabled",
         "auth_methods": ["oauth", "x-api-key"] if settings.use_builtin_oauth else ["x-api-key"],
-        "components": {"mcp": mcp_status, "iati_client": client_status},
+        "components": {
+            "mcp": mcp_status, 
+            "iati_client": client_status,
+            "streamable_http": "healthy" if transport_ok else "unhealthy"
+        },
+        "endpoints": {
+            "mcp": "/mcp",
+            "health": "/health",
+            "schema": "/.well-known/mcp/schema"
+        },
         "uptime": time.time(),
     }
 
@@ -251,6 +287,86 @@ async def get_metrics():
             media_type="text/plain",
             status_code=500
         )
+
+
+# ============================================================================
+# MCP Schema Endpoint for Copilot Studio Discovery
+# ============================================================================
+
+@app.get("/.well-known/mcp/schema")
+async def mcp_schema():
+    """
+    MCP Schema endpoint for Copilot Studio discovery.
+    
+    This endpoint implements the MCP schema discovery protocol as specified in:
+    https://github.com/modelcontextprotocol/specification/blob/main/protocol/mcp-schema.md
+    
+    Returns a JSON schema describing the MCP server capabilities.
+    """
+    try:
+        tools = await mcp.list_tools()
+        resources = await mcp.list_resources()
+        
+        # Generate MCP-specific schema following the MCP specification
+        schema = {
+            "name": settings.MCP_SERVER_NAME if hasattr(settings, 'MCP_SERVER_NAME') else "unhcr-iati-mcp",
+            "version": settings.MCP_SERVER_VERSION if hasattr(settings, 'MCP_SERVER_VERSION') else "0.0.1",
+            "description": "UNHCR Refugee Data Portal MCP Server - Provides access to UNHCR refugee statistics and indicators",
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "tools": {},
+                "resources": {},
+                "prompts": {}
+            },
+            "serverInfo": {
+                "name": settings.MCP_SERVER_NAME if hasattr(settings, 'MCP_SERVER_NAME') else "unhcr-iati-mcp",
+                "version": settings.MCP_SERVER_VERSION if hasattr(settings, 'MCP_SERVER_VERSION') else "0.0.1",
+                "environment": settings.ENVIRONMENT if hasattr(settings, 'ENVIRONMENT') else "production",
+                "baseUrl": settings.get_resource_url() if hasattr(settings, 'get_resource_url') else f"http://{settings.host}:{settings.port}"
+            },
+            "endpoints": {
+                "mcp": "/mcp",
+                "health": "/health",
+                "info": "/info",
+                "openapi": "/openapi.json",
+                "schema": "/.well-known/mcp/schema"
+            }
+        }
+        
+        # Add tool capabilities
+        for tool in tools:
+            tool_schema = {
+                "description": tool.description or "",
+                "inputSchema": {}
+            }
+            
+            # Extract input schema from tool parameters
+            if hasattr(tool, 'parameters') and isinstance(tool.parameters, dict):
+                tool_schema["inputSchema"] = tool.parameters
+            
+            schema["capabilities"]["tools"][tool.name] = tool_schema
+        
+        # Add resource capabilities
+        for resource in resources:
+            resource_schema = {
+                "description": resource.description or "",
+                "mimeType": resource.mime_type or "application/json"
+            }
+            schema["capabilities"]["resources"][resource.uri] = resource_schema
+        
+        return JSONResponse(
+            content=schema,
+            headers={
+                "Content-Type": "application/json",
+                "Cache-Control": "public, max-age=3600",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Max-Age": "86400"
+            }
+        )
+    except Exception as e:
+        logger.error(f"MCP schema generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================

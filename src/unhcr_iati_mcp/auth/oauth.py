@@ -1,9 +1,8 @@
 """
 OAuth 2.1 Server for UNHCR IATI MCP Server.
 
-This module implements a built-in OAuth 2.1 authorization server with client credentials
-grant type. It issues tokens that contain encrypted IATI API keys, eliminating the
-need for external authentication services.
+This module implements a proper OAuth 2.1 authorization server with JWT tokens
+signed using RS256 algorithm for Copilot Studio compatibility.
 
 Based on MCP Authorization Specification and OAuth 2.1 (RFC 9728).
 """
@@ -13,19 +12,71 @@ import hashlib
 import json
 import secrets
 import time
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
-from cryptography.fernet import Fernet
+import jwt
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException, status
 
 from unhcr_iati_mcp.config import settings
 
 
-# Generate a key for encrypting API keys in tokens
-# In production, this should be loaded from environment or secret management
-FERNET_KEY = Fernet.generate_key()
-_cipher_suite = Fernet(FERNET_KEY)
+# Generate or load RSA key pair
+# In production, these should be loaded from environment variables or secret management
+try:
+    # Try to load from environment variables (base64 encoded)
+    import os
+    private_key_pem = os.environ.get("OAUTH_PRIVATE_KEY")
+    public_key_pem = os.environ.get("OAUTH_PUBLIC_KEY")
+    
+    if private_key_pem and public_key_pem:
+        # Decode and load existing keys
+        private_key = serialization.load_pem_private_key(
+            private_key_pem.encode(),
+            password=None,
+            backend=default_backend()
+        )
+        public_key = serialization.load_pem_public_key(
+            public_key_pem.encode(),
+            backend=default_backend()
+        )
+    else:
+        # Generate new keys (for development only)
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        public_key = private_key.public_key()
+        
+        # Serialize keys for potential storage
+        private_key_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ).decode()
+        
+        public_key_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode()
+        
+        # Store in environment for persistence (development only)
+        os.environ["OAUTH_PRIVATE_KEY"] = private_key_pem
+        os.environ["OAUTH_PUBLIC_KEY"] = public_key_pem
+
+except Exception as e:
+    # Fallback: Generate new keys if loading fails
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    public_key = private_key.public_key()
 
 
 @dataclass
@@ -36,9 +87,9 @@ class OAuthToken:
     expires_in: int = 3600
     scope: str = "iati:read"
     client_id: str = "default"
-    created_at: float = 0.0
+    created_at: float = field(default_factory=time.time)
     
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert token to dictionary for JSON response."""
         return {
             "access_token": self.access_token,
@@ -48,152 +99,188 @@ class OAuthToken:
         }
 
 
-def encrypt_api_key(api_key: str) -> str:
-    """Encrypt an API key for storage in a token."""
-    return _cipher_suite.encrypt(api_key.encode()).decode()
-
-
-def decrypt_api_key(encrypted: str) -> str:
-    """Decrypt an API key from a token."""
-    return _cipher_suite.decrypt(encrypted.encode()).decode()
-
-
-def generate_token(client_id: str, api_key: str, expiry: int = 3600) -> OAuthToken:
+def generate_jwt_token(client_id: str, api_key: str, expiry: int = 3600, 
+                       additional_claims: Optional[Dict[str, Any]] = None) -> str:
     """
-    Generate an OAuth access token containing an encrypted API key.
+    Generate a JWT token signed with RS256 algorithm.
     
     Args:
         client_id: The client identifier
-        api_key: The IATI API key to encrypt into the token
+        api_key: The IATI API key (stored as a reference, not the actual key in production)
         expiry: Token expiry in seconds (default: 3600 = 1 hour)
-    
+        additional_claims: Additional claims to include in the token
+        
     Returns:
-        OAuthToken: The generated token with metadata
+        str: The signed JWT token
     """
-    # Encrypt the API key
-    encrypted_key = encrypt_api_key(api_key)
+    now = datetime.now(timezone.utc)
     
-    # Create token payload
+    # Create token payload with standard OAuth 2.1 claims
     payload = {
-        "client_id": client_id,
-        "api_key": encrypted_key,
-        "exp": int(time.time()) + expiry,
-        "iat": int(time.time()),
+        "iss": settings.get_resource_url(),  # Issuer
+        "sub": client_id,  # Subject (client identifier)
+        "aud": settings.get_resource_url(),  # Audience
+        "exp": now + timedelta(seconds=expiry),  # Expiration time
+        "nbf": now,  # Not before
+        "iat": now,  # Issued at
+        "jti": secrets.token_urlsafe(16),  # JWT ID
         "scope": "iati:read",
+        # Custom claims for API key reference
+        "api_key_ref": hashlib.sha256(api_key.encode()).hexdigest(),  # Store hash, not actual key
+        "client_id": client_id,
     }
     
-    # Encode payload as JSON and base64
-    token_payload = base64.urlsafe_b64encode(
-        json.dumps(payload).encode()
-    ).decode().rstrip("=")
+    # Add additional claims if provided
+    if additional_claims:
+        payload.update(additional_claims)
     
-    # Create a simple token (in production, use proper JWT signing)
-    # For simplicity, we use a signed payload format
-    signature = hashlib.sha256(
-        (token_payload + FERNET_KEY.decode()).encode()
-    ).hexdigest()[:16]
+    # Sign the token with RS256
+    token = jwt.encode(payload, private_key, algorithm="RS256")
     
-    access_token = f"{token_payload}.{signature}"
-    
-    return OAuthToken(
-        access_token=access_token,
-        token_type="Bearer",
-        expires_in=expiry,
-        scope="iati:read",
-        client_id=client_id,
-        created_at=time.time(),
-    )
+    return token
 
 
-def verify_token(token: str) -> tuple[str, str]:
+def verify_jwt_token(token: str) -> Dict[str, Any]:
     """
-    Verify an OAuth access token and extract the API key.
+    Verify a JWT token and extract its claims.
     
     Args:
-        token: The access token to verify
-    
+        token: The JWT token to verify
+        
     Returns:
-        tuple: (client_id, api_key)
-    
+        Dict[str, Any]: The decoded token claims
+        
     Raises:
-        HTTPException: If token is invalid or expired
+        HTTPException: If token is invalid, expired, or verification fails
     """
     try:
-        # Split token
-        parts = token.split(".")
-        if len(parts) != 2:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token format",
-                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-            )
-        
-        token_payload, signature = parts
-        
-        # Verify signature
-        expected_signature = hashlib.sha256(
-            (token_payload + FERNET_KEY.decode()).encode()
-        ).hexdigest()[:16]
-        
-        if signature != expected_signature:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token signature",
-                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-            )
-        
-        # Decode payload
-        token_payload += "=" * (4 - len(token_payload) % 4)  # Add padding
-        payload = json.loads(
-            base64.urlsafe_b64decode(token_payload.encode())
+        # Decode and verify the token
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience=settings.get_resource_url(),
+            issuer=settings.get_resource_url(),
+            options={
+                "require": ["exp", "iat", "sub", "iss", "aud"],
+                "verify_exp": True,
+                "verify_iat": True,
+                "verify_iss": True,
+                "verify_aud": True,
+            }
         )
         
-        # Check expiration
-        if payload.get("exp", 0) < time.time():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
-                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-            )
+        return payload
         
-        # Extract and decrypt API key
-        client_id = payload.get("client_id", "default")
-        encrypted_key = payload.get("api_key", "")
-        api_key = decrypt_api_key(encrypted_key)
-        
-        return client_id, api_key
-        
-    except Exception as e:
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired",
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token", error_description="Token has expired"'}
+        )
+    except jwt.InvalidTokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token: {str(e)}",
-            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'}
         )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token verification failed: {str(e)}",
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'}
+        )
+
+
+def get_jwks() -> Dict[str, Any]:
+    """
+    Get JWKS (JSON Web Key Set) for token verification.
+    
+    Returns:
+        Dict[str, Any]: JWKS representation with the public key
+    """
+    # Serialize public key to PEM format
+    public_key_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
+    
+    # Convert PEM to JWK format
+    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+    
+    if isinstance(public_key, RSAPublicKey):
+        # Extract key components
+        public_numbers = public_key.public_numbers()
+        
+        # Convert to base64url encoding
+        def to_base64url(data: bytes) -> str:
+            return base64.urlsafe_b64encode(data).decode().rstrip("=")
+        
+        # Create JWK
+        jwk = {
+            "kty": "RSA",
+            "use": "sig",
+            "kid": hashlib.sha256(public_key_pem.encode()).hexdigest()[:8],
+            "alg": "RS256",
+            "n": to_base64url(public_numbers.n.to_bytes((public_numbers.n.bit_length() + 7) // 8, 'big')),
+            "e": to_base64url(public_numbers.e.to_bytes(3, 'big')),  # Public exponent (usually 65537)
+        }
+        
+        return {
+            "keys": [jwk]
+        }
+    else:
+        # Fallback: Return minimal JWKS
+        return {
+            "keys": [
+                {
+                    "kty": "RSA",
+                    "use": "sig",
+                    "kid": hashlib.sha256(public_key_pem.encode()).hexdigest()[:8],
+                    "alg": "RS256",
+                }
+            ]
+        }
+
+
+def get_metadata() -> Dict[str, Any]:
+    """
+    Get OAuth Authorization Server Metadata (RFC 8414).
+    
+    Returns:
+        Dict[str, Any]: Authorization server metadata
+    """
+    resource_url = settings.get_resource_url()
+    
+    return {
+        "issuer": resource_url,
+        "authorization_endpoint": f"{resource_url}/oauth/authorize",
+        "token_endpoint": f"{resource_url}/oauth/token",
+        "jwks_uri": f"{resource_url}/.well-known/jwks.json",
+        "response_types_supported": ["token"],
+        "grant_types_supported": ["client_credentials"],
+        "subject_types_supported": ["public"],
+        "id_token_signing_alg_values_supported": ["RS256"],
+        "scopes_supported": ["iati:read"],
+        "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+        "code_challenge_methods_supported": [],
+        "tls_client_certificate_bound_access_tokens": False,
+    }
 
 
 class OAuthServer:
     """
-    Built-in OAuth 2.1 authorization server.
+    OAuth 2.1 authorization server with proper JWT support.
     
     Implements the client credentials grant type as specified in RFC 6749.
-    In this simplified implementation, the client_secret IS the IATI API key.
-    
-    This allows users to:
-    1. Use their IATI API key directly as client_secret
-    2. Receive an OAuth token containing their encrypted API key
-    3. Use the token for subsequent requests
-    
-    Benefits:
-    - No external authentication service required
-    - Zero registration needed
-    - Standards-compliant OAuth 2.1 flow
-    - Works with all MCP clients that support OAuth
+    Uses RS256 signing for JWT tokens to ensure compatibility with Copilot Studio.
     """
     
     def __init__(self):
         """Initialize the OAuth server."""
-        self.tokens: dict[str, OAuthToken] = {}  # token -> OAuthToken mapping
-        self.clients: dict[str, str] = {}  # client_id -> api_key mapping
+        self.tokens: Dict[str, OAuthToken] = {}  # token -> OAuthToken mapping
+        self.clients: Dict[str, str] = {}  # client_id -> api_key mapping
+        self.api_key_store: Dict[str, str] = {}  # Store API keys securely (in production, use proper storage)
     
     def get_fixed_client_id(self) -> str:
         """Get the fixed client ID for simplified auth (any string works)."""
@@ -203,13 +290,10 @@ class OAuthServer:
         """
         Validate client credentials.
         
-        In this implementation, we validate that the client_secret is non-empty
-        and appears to be a valid API key format (at least 10 characters).
-        
         Args:
             client_id: The client identifier (any string accepted)
             client_secret: The client secret (must be valid IATI API key)
-        
+            
         Returns:
             bool: True if valid, False otherwise
         """
@@ -220,6 +304,9 @@ class OAuthServer:
         
         # Store the client mapping (optional, for token management)
         self.clients[client_id] = client_secret
+        
+        # Store the API key (in production, use proper secure storage)
+        self.api_key_store[client_id] = client_secret
         
         return True
     
@@ -236,12 +323,23 @@ class OAuthServer:
             client_id: The client identifier
             client_secret: The client secret (IATI API key)
             expiry: Token expiry in seconds
-        
+            
         Returns:
             OAuthToken: The issued token
         """
-        token = generate_token(client_id, client_secret, expiry)
-        self.tokens[token.access_token] = token
+        # Generate JWT token
+        access_token = generate_jwt_token(client_id, client_secret, expiry)
+        
+        token = OAuthToken(
+            access_token=access_token,
+            token_type="Bearer",
+            expires_in=expiry,
+            scope="iati:read",
+            client_id=client_id,
+            created_at=time.time()
+        )
+        
+        self.tokens[access_token] = token
         return token
     
     def verify_token(self, token: str) -> tuple[str, str]:
@@ -250,53 +348,103 @@ class OAuthServer:
         
         Args:
             token: The access token
-        
+            
         Returns:
             tuple: (client_id, api_key)
-        
+            
         Raises:
             HTTPException: If token is invalid
         """
-        return verify_token(token)
+        try:
+            # Verify and decode the JWT token
+            payload = verify_jwt_token(token)
+            
+            # Extract client_id and API key reference
+            client_id = payload.get("sub", "default")
+            api_key_ref = payload.get("api_key_ref", "")
+            
+            # In production, look up the actual API key from secure storage
+            # For now, we'll return the client_id and a placeholder
+            # In a real implementation, you would:
+            # 1. Look up the client_id in your client database
+            # 2. Retrieve the actual API key associated with that client
+            # 3. Return the actual API key
+            
+            # For this implementation, we'll return the client_id and the stored API key
+            api_key = self.api_key_store.get(client_id, client_secret)
+            
+            if not api_key:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid client credentials",
+                    headers={"WWW-Authenticate": 'Bearer error="invalid_client"'}
+                )
+            
+            return client_id, api_key
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid token: {str(e)}",
+                headers={"WWW-Authenticate": 'Bearer error="invalid_token"'}
+            )
     
-    def get_jwks(self) -> dict[str, Any]:
+    def get_jwks(self) -> Dict[str, Any]:
         """
         Get JWKS (JSON Web Key Set) for token verification.
         
         Returns:
-            dict: JWKS representation
+            Dict[str, Any]: JWKS representation
         """
-        # In a full implementation, this would contain the actual keys
-        # For simplicity, we return a minimal JWKS
-        return {
-            "keys": [
-                {
-                    "kty": "oct",
-                    "use": "sig",
-                    "kid": hashlib.sha256(FERNET_KEY).hexdigest()[:8],
-                    "alg": "HS256",
-                }
-            ]
-        }
+        return get_jwks()
     
-    def get_metadata(self) -> dict[str, Any]:
+    def get_metadata(self) -> Dict[str, Any]:
         """
         Get OAuth Authorization Server Metadata (RFC 8414).
         
         Returns:
-            dict: Authorization server metadata
+            Dict[str, Any]: Authorization server metadata
         """
-        resource_url = settings.resource_url or f"http://{settings.host}:{settings.port}"
-        
-        return {
-            "issuer": resource_url,
-            "authorization_endpoint": f"{resource_url}/oauth/authorize",
-            "token_endpoint": f"{resource_url}/oauth/token",
-            "jwks_uri": f"{resource_url}/.well-known/jwks.json",
-            "response_types_supported": ["token"],
-            "grant_types_supported": ["client_credentials"],
-            "subject_types_supported": ["public"],
-            "id_token_signing_alg_values_supported": ["HS256"],
-            "scopes_supported": ["iati:read"],
-            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
-        }
+        return get_metadata()
+
+
+# Backwards compatibility functions
+def encrypt_api_key(api_key: str) -> str:
+    """Encrypt an API key for storage in a token (legacy method)."""
+    from cryptography.fernet import Fernet
+    from cryptography.fernet import Fernet
+    # Generate a key for encrypting API keys in tokens
+    FERNET_KEY = Fernet.generate_key()
+    _cipher_suite = Fernet(FERNET_KEY)
+    return _cipher_suite.encrypt(api_key.encode()).decode()
+
+
+def decrypt_api_key(encrypted: str) -> str:
+    """Decrypt an API key from a token (legacy method)."""
+    from cryptography.fernet import Fernet
+    FERNET_KEY = Fernet.generate_key()
+    _cipher_suite = Fernet(FERNET_KEY)
+    return _cipher_suite.decrypt(encrypted.encode()).decode()
+
+
+def generate_token(client_id: str, api_key: str, expiry: int = 3600) -> OAuthToken:
+    """Generate an OAuth access token (legacy method)."""
+    # Use the new JWT-based method
+    access_token = generate_jwt_token(client_id, api_key, expiry)
+    return OAuthToken(
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=expiry,
+        scope="iati:read",
+        client_id=client_id,
+        created_at=time.time()
+    )
+
+
+def verify_token(token: str) -> tuple[str, str]:
+    """Verify an OAuth access token and extract the API key (legacy method)."""
+    # Create a temporary OAuth server for verification
+    oauth_server = OAuthServer()
+    return oauth_server.verify_token(token)
