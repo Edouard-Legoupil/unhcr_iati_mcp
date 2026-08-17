@@ -47,6 +47,48 @@ All **41 IATI code lookup tables** are embedded in the package with on-demand lo
 - **Container Runtime**: Docker (optional)
 - **API Key**: IATI Datastore subscription key (required)
 
+### 🚀 Azure Function App Deployment (Recommended for Copilot Studio)
+
+**⚠️ IMPORTANT**: For Microsoft Copilot Studio integration, deploy using Azure Function App with Streamable HTTP transport.
+
+See the [Azure Deployment Guide](docs/DEPLOYMENT.md#-azure-function-app-deployment-recommended-for-copilot-studio) for complete instructions.
+
+#### Quick Azure Deployment
+
+```bash
+# 1. Install Azure Functions Core Tools
+npm install -g azure-functions-core-tools@4
+
+# 2. Create Azure resources
+az group create --name unhcr-mcp-rg --location eastus
+az storage account create --name unhcrmcpstorage --location eastus --resource-group unhcr-mcp-rg --sku Standard_LRS
+az functionapp create --name unhcr-iati-mcp --resource-group unhcr-mcp-rg --runtime python --runtime-version 3.12 --functions-version 4 --storage-account unhcrmcpstorage --os-type Linux
+
+# 3. Deploy the MCP server
+func azure functionapp publish unhcr-iati-mcp
+
+# 4. Configure environment variables
+az functionapp config appsettings set --name unhcr-iati-mcp --resource-group unhcr-mcp-rg --settings IATI_API_KEY="your-iati-key" MCP_TRANSPORT="http" USE_BUILTIN_OAUTH="true" AZURE_FUNCTION_APP="true"
+
+# 5. Configure HTTPS (required for Copilot Studio)
+az functionapp config ssl create --name unhcr-iati-mcp --resource-group unhcr-mcp-rg --certificate-name mcp-cert --server-name unhcr-iati-mcp.azurewebsites.net
+az functionapp config ssl bind --name unhcr-iati-mcp --resource-group unhcr-mcp-rg --certificate-name mcp-cert --ssl-type SNI
+```
+
+#### Configure Copilot Studio Connector
+
+1. In Copilot Studio, go to **Connectors** > **Custom Connectors**
+2. Click **Create Custom Connector** and select **Model Context Protocol (MCP)**
+3. Configure with:
+   - **Endpoint URL**: `https://unhcr-iati-mcp.azurewebsites.net/api/mcp`
+   - **Authentication**: OAuth 2.1
+   - **Client ID**: `default`
+   - **Client Secret**: Your IATI API Key
+   - **Token Endpoint**: `https://unhcr-iati-mcp.azurewebsites.net/api/oauth/token`
+   - **Scope**: `iati:read`
+
+See [detailed Azure deployment guide](docs/DEPLOYMENT.md#-azure-function-app-deployment-recommended-for-copilot-studio) for complete setup instructions.
+
 ### Installation
 
 #### Using pip
@@ -75,6 +117,8 @@ cp .env.example .env
 docker-compose build
 docker-compose up -d
 ```
+
+**Note**: For production deployment with Microsoft Copilot Studio, consider using [Azure Function App](#-azure-function-app-deployment-recommended-for-copilot-studio) instead.
 
 ### Running the Server
 
