@@ -19,8 +19,8 @@ import azure.functions as func
 from starlette.middleware.cors import CORSMiddleware
 
 from ..config import settings
-from ..client import UNHCRClient
-from ..server import get_server
+from ..client import IATIClient as UNHCRClient
+from ..server import mcp as get_server
 from ..context import mcp
 from ..auth.oauth import OAuthServer
 
@@ -62,7 +62,6 @@ def get_asgi_middleware():
         _http_app = CORSMiddleware(
             base_app,
             allow_origins=[
-                "*",
                 # Microsoft Copilot Studio and related domains
                 "https://copilotstudio.microsoft.com",
                 "https://*.copilotstudio.microsoft.com",
@@ -626,7 +625,7 @@ async def mcp_schema_handler(req: func.HttpRequest, context: func.Context) -> fu
     https://github.com/modelcontextprotocol/specification/blob/main/protocol/mcp-schema.md
     
     Returns a JSON schema describing the MCP server capabilities.
-    Accessible at /.well-known/mcp/schema
+    Accessible at /api/.well-known/mcp/schema
     """
     try:
         mcp_app = get_mcp_app()
@@ -654,7 +653,7 @@ async def mcp_schema_handler(req: func.HttpRequest, context: func.Context) -> fu
                 "health": "/api/health",
                 "info": "/api/info",
                 "openapi": "/api/openapi.json",
-                "schema": "/.well-known/mcp/schema"
+                "schema": "/api/.well-known/mcp/schema"
             }
         }
         
@@ -779,7 +778,7 @@ async def well_known_openapi_handler(req: func.HttpRequest, context: func.Contex
     Well-known OpenAPI Schema Endpoint.
     
     Redirects to the main OpenAPI schema.
-    Accessible at /.well-known/openapi.json
+    Accessible at /api/.well-known/openapi.json
     """
     try:
         # Redirect to the main OpenAPI endpoint
