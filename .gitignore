@@ -19,3 +19,8 @@ src/unhcr_iati_mcp/observability/__pycache__/*
 tests/__pycache__/*
 tests/direct_api/results/*
 src/unhcr_iati_mcp/auth/__pycache__/*
+
+host.json
+local.settings.json.example
+local.settings.json
+.vscode/settings.json
