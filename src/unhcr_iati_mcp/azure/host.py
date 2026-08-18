@@ -103,6 +103,20 @@ async def ensure_asgi_startup():
 # So our /mcp route becomes /api/mcp, which is the standard Azure Functions behavior
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
+# Azure Functions can inspect the app more than once during registration and startup.
+# The runtime mutates `functions_bindings` in-place, so a second discovery pass raises
+# a duplicate-name ValueError and prevents the function list from appearing in the portal.
+_original_validate_function_names = app.validate_function_names
+
+
+def _validate_function_names_idempotent(functions):
+    """Reset the function registry before each discovery pass so Azure can scan the app repeatedly."""
+    app.functions_bindings = {}
+    return _original_validate_function_names(functions)
+
+
+app.validate_function_names = _validate_function_names_idempotent
+
 
 # ============================================================================
 # OAuth 2.1 Endpoints for Azure Function App

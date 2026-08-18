@@ -25,6 +25,10 @@ from fastapi import HTTPException, status
 from unhcr_iati_mcp.config import settings
 
 
+# In-memory key storage shared across generated and validated tokens.
+GLOBAL_API_KEY_STORE: Dict[str, str] = {}
+
+
 # Generate or load RSA key pair
 # In production, these should be loaded from environment variables or secret management
 try:
@@ -301,13 +305,14 @@ class OAuthServer:
         # In production, you might want to validate against known API keys
         if not client_secret or len(client_secret) < 10:
             return False
-        
+
         # Store the client mapping (optional, for token management)
         self.clients[client_id] = client_secret
-        
+
         # Store the API key (in production, use proper secure storage)
         self.api_key_store[client_id] = client_secret
-        
+        GLOBAL_API_KEY_STORE[client_id] = client_secret
+
         return True
     
     def issue_token(
@@ -358,30 +363,30 @@ class OAuthServer:
         try:
             # Verify and decode the JWT token
             payload = verify_jwt_token(token)
-            
+
             # Extract client_id and API key reference
             client_id = payload.get("sub", "default")
             api_key_ref = payload.get("api_key_ref", "")
-            
-            # In production, look up the actual API key from secure storage
-            # For now, we'll return the client_id and a placeholder
-            # In a real implementation, you would:
-            # 1. Look up the client_id in your client database
-            # 2. Retrieve the actual API key associated with that client
-            # 3. Return the actual API key
-            
-            # For this implementation, we'll return the client_id and the stored API key
-            api_key = self.api_key_store.get(client_id, client_secret)
-            
+
+            api_key = self.api_key_store.get(client_id) or GLOBAL_API_KEY_STORE.get(client_id)
+            if not api_key and api_key_ref:
+                for stored_key in list(self.api_key_store.values()) + list(GLOBAL_API_KEY_STORE.values()):
+                    if hashlib.sha256(stored_key.encode()).hexdigest() == api_key_ref:
+                        api_key = stored_key
+                        break
+
+            if not api_key:
+                api_key = settings.iati_api_key
+
             if not api_key:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid client credentials",
                     headers={"WWW-Authenticate": 'Bearer error="invalid_client"'}
                 )
-            
+
             return client_id, api_key
-            
+
         except HTTPException:
             raise
         except Exception as e:
@@ -431,7 +436,8 @@ def decrypt_api_key(encrypted: str) -> str:
 
 def generate_token(client_id: str, api_key: str, expiry: int = 3600) -> OAuthToken:
     """Generate an OAuth access token (legacy method)."""
-    # Use the new JWT-based method
+    # Use the new JWT-based method and retain the API-key mapping for verification.
+    GLOBAL_API_KEY_STORE[client_id] = api_key
     access_token = generate_jwt_token(client_id, api_key, expiry)
     return OAuthToken(
         access_token=access_token,

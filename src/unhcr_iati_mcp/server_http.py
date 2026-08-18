@@ -25,6 +25,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from unhcr_iati_mcp import resources as _resources_module  # noqa: F401
+from unhcr_iati_mcp import tools as _tools_module  # noqa: F401
 from unhcr_iati_mcp.auth.middleware import AuthMiddleware
 from unhcr_iati_mcp.auth.oauth import OAuthServer
 from unhcr_iati_mcp.config import settings
@@ -509,9 +511,10 @@ async def _list_resources() -> dict[str, Any]:
         resources_list = await mcp.list_resources()
         resources = []
         for resource in resources_list:
+            uri_value = str(resource.uri)
             resources.append({
-                "uri": resource.uri,
-                "name": resource.name or resource.uri.split("://")[-1],
+                "uri": uri_value,
+                "name": resource.name or uri_value.split("://")[-1],
                 "description": resource.description or "",
                 "mimeType": resource.mime_type or "application/json",
             })

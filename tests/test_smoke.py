@@ -103,6 +103,16 @@ class TestToolRegistration:
         # Note: FastMCP may not expose tool list directly
         assert mcp is not None
 
+    def test_azure_function_discovery_is_idempotent(self):
+        """Azure Functions may scan the app more than once; discovery must not fail on a second pass."""
+        from unhcr_iati_mcp.azure.host import app
+
+        first = app.get_functions()
+        second = app.get_functions()
+
+        assert len(first) > 0
+        assert len(second) == len(first)
+
 
 class TestResourceRegistration:
     """Test that resources are registered with MCP."""

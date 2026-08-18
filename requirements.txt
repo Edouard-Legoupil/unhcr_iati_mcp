@@ -1,30 +1,35 @@
 # Azure Function App dependencies for UNHCR MCP Server
 
-# Core dependencies (from requirements.txt)
+# Core dependencies
 fastmcp>=1.0.0
-aiohttp>=3.8.0
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-tenacity>=8.0.0
-uvicorn[standard]>=0.20.0
-
-# Azure Functions specific dependencies
-azure-functions>=1.16.0
-azure-identity>=1.15.0
-azure-keyvault-secrets>=4.5.0
-
-# Required for Starlette ASGI compatibility
-starlette>=0.37.0
-
-# Note: mcp package removed to avoid conflicts with fastmcp
-# fastmcp already includes all necessary MCP protocol support
-
-# Optional: For better async support
-anyio>=4.0.0
-httpx>=0.24.0
-
-# Optional: For JSON logging
-json-logging>=1.0.0
-
-# Optional: For environment variable management
+httpx>=0.27.0
+pydantic>=2.7.0,<3.0.0
+pydantic-settings>=2.2.0,<3.0.0
+prometheus-client>=0.20.0
+tenacity>=8.2.0
 python-dotenv>=1.0.0
+
+# HTTP + ASGI runtime
+fastapi>=0.115.0,<1.0.0
+starlette>=0.38.0,<1.0.0
+uvicorn[standard]>=0.30.0
+
+# Azure Functions runtime
+azure-functions>=1.21.0
+azure-identity>=1.17.0
+
+# Security / auth
+cryptography>=42.0.0
+pyjwt>=2.8.0
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.6
+
+# Data / IATI support
+pyreadr>=0.4.0
+redis>=5.0.0
+
+# Async compatibility
+anyio>=4.0.0
+
+# Optional: JSON logging
+json-logging>=1.0.0

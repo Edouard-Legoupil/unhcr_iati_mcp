@@ -8,8 +8,11 @@ transport = "stdio"
 command = "python3"
 args = [
     "-m",
-    "src.unhcr_iati_mcp.server",
+    "unhcr_iati_mcp.server",
 ]
+cwd = "/home/edouard/python/unhcr_iati_mcp"
+env = { IATI_API_KEY = "${IATI_API_KEY}", MCP_TRANSPORT = "stdio", LOG_LEVEL = "DEBUG" }
+timeout = 60
 
 [tools.bash]
 allowlist = [
