@@ -96,25 +96,10 @@ async def ensure_asgi_startup():
 # Create the Azure Function App
 # Note: In Azure Functions v4 Python, HTTP functions are automatically prefixed with /api
 # So our /mcp route becomes /api/mcp, which is the standard Azure Functions behavior
-app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
-
-# Azure Functions can inspect the app more than once during registration and startup.
-# The runtime mutates `functions_bindings` in-place, so a second discovery pass raises
-# a duplicate-name ValueError and prevents the function list from appearing in the portal.
-_original_validate_function_names = app.validate_function_names
 
 
-def _validate_function_names_idempotent(functions):
-    """Reset the function registry before each discovery pass so Azure can scan the app repeatedly."""
-    app.functions_bindings = {}
-    return _original_validate_function_names(functions)
 
 
-app.validate_function_names = _validate_function_names_idempotent
-
-
-@app.function_name(name="mcp")
-@app.route(route="mcp/{*path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
 async def mcp_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     Main MCP HTTP handler for Streamable HTTP transport.
@@ -213,8 +198,6 @@ async def mcp_handler(req: func.HttpRequest, context: func.Context) -> func.Http
         )
 
 
-@app.function_name(name="health")
-@app.route(route="health", methods=["GET"])
 async def health_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     Health check endpoint.
@@ -259,8 +242,6 @@ async def health_handler(req: func.HttpRequest, context: func.Context) -> func.H
         )
 
 
-@app.function_name(name="info")
-@app.route(route="info", methods=["GET"])
 async def info_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     Server information endpoint.
@@ -305,8 +286,6 @@ async def info_handler(req: func.HttpRequest, context: func.Context) -> func.Htt
         )
 
 
-@app.function_name(name="openapi")
-@app.route(route="openapi.json", methods=["GET"])
 async def openapi_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     OpenAPI schema endpoint for Copilot Studio discovery.
@@ -445,8 +424,6 @@ async def openapi_handler(req: func.HttpRequest, context: func.Context) -> func.
         )
 
 
-@app.function_name(name="mcp_schema")
-@app.route(route=".well-known/mcp/schema", methods=["GET"])
 async def mcp_schema_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     MCP Schema Discovery Endpoint for Copilot Studio.
@@ -522,8 +499,6 @@ async def mcp_schema_handler(req: func.HttpRequest, context: func.Context) -> fu
         )
 
 
-@app.function_name(name="mcp_protocol")
-@app.route(route=".well-known/mcp", methods=["GET"])
 async def mcp_protocol_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     MCP Protocol Schema Endpoint.
@@ -601,8 +576,6 @@ async def mcp_protocol_handler(req: func.HttpRequest, context: func.Context) -> 
         )
 
 
-@app.function_name(name="well_known_openapi")
-@app.route(route=".well-known/openapi.json", methods=["GET"])
 async def well_known_openapi_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
     """
     Well-known OpenAPI Schema Endpoint.
