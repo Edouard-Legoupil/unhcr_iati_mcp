@@ -16,9 +16,9 @@ from fastapi.testclient import TestClient
 class TestHTTPServerImports:
     """Test that HTTP server modules can be imported."""
 
-    def test_import_server_http(self):
-        """Test that server_http module can be imported."""
-        from unhcr_iati_mcp.server_http import app
+    def test_import_server(self):
+        """Test that server module can be imported."""
+        from unhcr_iati_mcp.server_local import app
         assert app is not None
 
     def test_import_auth_oauth(self):
@@ -153,7 +153,7 @@ class TestHealthCheck:
     @pytest.fixture
     def client(self):
         """Create a test client."""
-        from unhcr_iati_mcp.server_http import app
+        from unhcr_iati_mcp.server_local import app
         return TestClient(app)
 
     def test_health_endpoint(self, client):
@@ -175,7 +175,7 @@ class TestOAuthEndpoints:
     @pytest.fixture
     def client(self):
         """Create a test client."""
-        from unhcr_iati_mcp.server_http import app
+        from unhcr_iati_mcp.server_local import app
         return TestClient(app)
 
     def test_oauth_authorization_server_metadata(self, client):
@@ -211,7 +211,7 @@ class TestMCPEndpoints:
     @pytest.fixture
     def client(self):
         """Create a test client with API key."""
-        from unhcr_iati_mcp.server_http import app
+        from unhcr_iati_mcp.server_local import app
         client = TestClient(app)
         # Set X-API-Key header for authentication
         client.headers["X-API-Key"] = "test-api-key-1234567890"
@@ -293,7 +293,7 @@ class TestXAPIKeyAuth:
     @pytest.fixture
     def client(self):
         """Create a test client."""
-        from unhcr_iati_mcp.server_http import app
+        from unhcr_iati_mcp.server_local import app
         return TestClient(app)
 
     def test_x_api_key_auth(self, client):

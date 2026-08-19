@@ -20,7 +20,6 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ..config import settings
 from ..client import IATIClient as UNHCRClient
-from ..server import mcp as get_server
 from ..context import mcp
 
 logger = logging.getLogger(__name__)
@@ -37,22 +36,23 @@ def get_mcp_app():
     """Get or create the FastMCP server instance."""
     global _server
     if _server is None:
-        _server = get_server()
-    return _server.create_app()
+        # mcp is the FastMCP instance from context
+        _server = mcp
+    # FastMCP uses http_app() method, not create_app()
+    return _server.http_app(
+        transport="streamable-http",
+        path="/api/mcp",
+        stateless_http=True,
+        json_response=True,
+    )
 
 
 def get_asgi_middleware():
     """Get or create the AsgiMiddleware instance for FastMCP."""
     global _http_app, _asgi_middleware
     if _asgi_middleware is None:
-        mcp_app = get_mcp_app()
-        # FastMCP Starlette app route path must match the Azure Functions route prefix (/api/mcp)
-        base_app = mcp_app.http_app(
-            transport="streamable-http",
-            path="/api/mcp",
-            stateless_http=True,
-            json_response=True,
-        )
+        # get_mcp_app() now returns the Starlette app directly
+        base_app = get_mcp_app()
         # Add CORSMiddleware so Copilot Studio browser preflights succeed and Mcp-Session-Id is exposed
         _http_app = CORSMiddleware(
             base_app,

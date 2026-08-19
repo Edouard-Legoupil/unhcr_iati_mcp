@@ -79,3 +79,5 @@ dockerignore
 # OS files
 .DS_Store
 Thumbs.db
+
+src/unhcr_iati_mcp/server_local.py

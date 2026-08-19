@@ -42,7 +42,7 @@ The UNHCR IATI MCP Server has been updated to fully support Microsoft Copilot St
 **Impact**: Server now uses Streamable HTTP transport by default, compatible with Copilot Studio.
 
 #### Fix 4: Add Required Headers for Copilot Studio
-**File**: `src/unhcr_iati_mcp/server_http.py`
+**File**: `src/unhcr_iati_mcp/server.py`
 - Enhanced CORS configuration with Copilot Studio domains
 - Added `Mcp-Session-Id` to exposed headers
 - Added proper CORS preflight support
@@ -80,7 +80,7 @@ The UNHCR IATI MCP Server has been updated to fully support Microsoft Copilot St
 **Impact**: Users can now easily deploy to Azure Function App for Copilot Studio.
 
 #### Fix 8: Add Health Check for Streamable HTTP
-**File**: `src/unhcr_iati_mcp/server_http.py`
+**File**: `src/unhcr_iati_mcp/server.py`
 - Enhanced health endpoint with Streamable HTTP verification
 - Added transport readiness check
 - Added endpoint information to health response
@@ -88,7 +88,7 @@ The UNHCR IATI MCP Server has been updated to fully support Microsoft Copilot St
 **Impact**: Better monitoring and health checking for Copilot Studio.
 
 #### Fix 9: Add MCP Schema Validation Endpoint
-**File**: `src/unhcr_iati_mcp/server_http.py`
+**File**: `src/unhcr_iati_mcp/server.py`
 - Added `/.well-known/mcp/schema` endpoint
 - Implemented MCP schema discovery protocol
 - Added proper caching headers
