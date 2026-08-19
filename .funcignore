@@ -30,7 +30,6 @@ wheels/
 venv/
 ENV/
 env/
-.env
 
 # IDE
 .vscode/
@@ -46,10 +45,6 @@ htmlcov/
 .tox/
 .nox/
 
-# Documentation
-docs/
-*.md
-
 # Logs and metrics
 logs/
 metrics/
@@ -58,7 +53,6 @@ metrics/
 # Deployment artifacts
 .azure/
 .azure-pipelines/
-azure-deploy/
 .arc/
 
 # Vibe/CLI
@@ -71,13 +65,12 @@ azure-deploy/
 # Local settings
 local.settings.json
 
-# Docker
-Dockerfile
-docker-compose.yml
-dockerignore
-
 # OS files
 .DS_Store
 Thumbs.db
 
-src/unhcr_iati_mcp/server_local.py
+# Explicitly include required files for Azure Functions deployment
+!function_app.py
+!host.json
+!requirements.txt
+!src/
