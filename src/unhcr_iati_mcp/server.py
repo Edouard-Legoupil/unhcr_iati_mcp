@@ -83,7 +83,6 @@ def _run_http_server():
     
     logger.info(f"HTTP Server listening on {settings.host}:{settings.port}")
     logger.info(f"Resource URL: {settings.get_resource_url()}")
-    logger.info(f"OAuth: {'enabled' if settings.use_builtin_oauth else 'disabled'}")
     logger.info(f"Transport: streamable-http (for Copilot Studio compatibility)")
     
     # Create FastMCP app with Streamable HTTP transport

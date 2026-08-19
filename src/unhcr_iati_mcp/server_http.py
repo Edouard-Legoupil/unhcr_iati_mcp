@@ -10,11 +10,9 @@ This significantly reduces context overhead by:
 
 Features:
 - MCP JSON-RPC over HTTP (via FastMCP + custom dispatch)
-- OAuth 2.1 authentication with built-in server
 - X-API-Key header support for HuggingChat compatibility
 - Health check endpoint
 - Protected Resource Metadata endpoint (RFC 9728)
-- Dual authentication support
 """
 
 import json
@@ -27,8 +25,6 @@ from fastapi.responses import JSONResponse
 
 from unhcr_iati_mcp import resources as _resources_module  # noqa: F401
 from unhcr_iati_mcp import tools as _tools_module  # noqa: F401
-from unhcr_iati_mcp.auth.middleware import AuthMiddleware
-from unhcr_iati_mcp.auth.oauth import OAuthServer
 from unhcr_iati_mcp.config import settings
 from unhcr_iati_mcp.context import mcp, iati_client, unhcr_filter
 from unhcr_iati_mcp.observability.logging import configure_logging, get_logger
@@ -36,15 +32,6 @@ from unhcr_iati_mcp.observability.metrics import configure_metrics
 
 
 logger = get_logger(__name__)
-
-# Initialize OAuth server (if enabled)
-oauth_server: OAuthServer | None = None
-if settings.use_builtin_oauth:
-    oauth_server = OAuthServer()
-    logger.info("OAuth 2.1 server initialized")
-
-# Initialize auth middleware
-auth_middleware = AuthMiddleware(oauth_server)
 
 # Get resource URL
 RESOURCE_URL = settings.resource_url or f"http://{settings.host}:{settings.port}"
@@ -82,6 +69,8 @@ app.add_middleware(
         "https://*.m365.cloud.microsoft",
         "http://localhost:*",
         "http://127.0.0.1:*",
+         "https://claude.ai",
+        "https://*.claude.ai",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
@@ -94,123 +83,6 @@ app.add_middleware(
     ],
     max_age=86400,
 )
-
-# Add auth middleware
-app.middleware("http")(auth_middleware)
-
-
-# ============================================================================
-# OAuth 2.1 Endpoints
-# ============================================================================
-
-@app.get("/.well-known/oauth-authorization-server")
-async def oauth_authorization_server_metadata():
-    """
-    OAuth 2.1 Authorization Server Metadata (RFC 8414).
-    """
-    if oauth_server:
-        return oauth_server.get_metadata()
-    
-    return {
-        "issuer": RESOURCE_URL,
-        "token_endpoint": f"{RESOURCE_URL}/oauth/token",
-        "jwks_uri": f"{RESOURCE_URL}/.well-known/jwks.json",
-        "response_types_supported": ["token"],
-        "grant_types_supported": ["client_credentials"],
-    }
-
-
-@app.get("/.well-known/jwks.json")
-async def jwks():
-    """JSON Web Key Set (JWKS) endpoint."""
-    if oauth_server:
-        return oauth_server.get_jwks()
-    return {"keys": []}
-
-
-@app.get("/.well-known/oauth-protected-resource")
-async def oauth_protected_resource_metadata():
-    """OAuth Protected Resource Metadata (RFC 9728)."""
-    auth_servers = []
-    if settings.use_builtin_oauth:
-        auth_servers = [RESOURCE_URL]
-    elif settings.auth_server_url:
-        auth_servers = [settings.auth_server_url]
-    return {"resource": RESOURCE_URL, "authorization_servers": auth_servers}
-
-
-@app.post("/oauth/token")
-async def token_endpoint(request: Request):
-    """OAuth 2.1 Token Endpoint (Client Credentials Grant)."""
-    if not oauth_server:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="OAuth server not configured",
-        )
-    
-    form_data = await request.form()
-    grant_type = form_data.get("grant_type")
-    client_id = form_data.get("client_id", settings.oauth_client_id)
-    client_secret = form_data.get("client_secret")
-    
-    if grant_type != "client_credentials":
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "unsupported_grant_type", 
-                    "error_description": "Only client_credentials grant type is supported"},
-        )
-    
-    if not client_secret:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"error": "invalid_request",
-                    "error_description": "client_secret (IATI API key) is required"},
-        )
-    
-    if not oauth_server.validate_client(client_id, client_secret):
-        return JSONResponse(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            content={"error": "invalid_client",
-                    "error_description": "Invalid client credentials - check your IATI API key"},
-        )
-    
-    token = oauth_server.issue_token(
-        client_id=client_id,
-        client_secret=client_secret,
-        expiry=settings.oauth_token_expiry,
-    )
-    return token.to_dict()
-
-
-@app.get("/oauth/info")
-async def oauth_info():
-    """OAuth Information Endpoint."""
-    resource_url = RESOURCE_URL
-    return {
-        "message": "Built-in OAuth Server - No registration required",
-        "auth_methods": [
-            {
-                "name": "OAuth 2.1 (Recommended)",
-                "description": "For Claude, OpenAI, and OAuth-compliant clients",
-                "instructions": {
-                    "client_id": oauth_server.get_fixed_client_id() if oauth_server else "default",
-                    "client_secret": "Your IATI API key from https://developer.iatistandard.org/",
-                    "token_endpoint": f"{resource_url}/oauth/token",
-                    "grant_type": "client_credentials",
-                },
-                "example": f"curl -X POST {resource_url}/oauth/token -d \"grant_type=client_credentials&client_id=default&client_secret=YOUR_IATI_API_KEY\"",
-            },
-            {
-                "name": "X-API-Key Header",
-                "description": "For HuggingChat and clients without OAuth support",
-                "instructions": {
-                    "header_name": "X-API-Key",
-                    "header_value": "Your IATI API key from https://developer.iatistandard.org/",
-                },
-                "example": f'curl -X POST {resource_url}/mcp -H "X-API-Key: YOUR_IATI_API_KEY" -H "Content-Type: application/json" -d \'{{"jsonrpc":"2.0","id":1,"method":"tools/list"}}\'',
-            },
-        ],
-    }
 
 
 # ============================================================================
@@ -246,8 +118,7 @@ async def health_check():
         "version": "0.0.1",
         "transport": "streamable-http",
         "streamable_http_ready": transport_ok,
-        "oauth": "built-in" if settings.use_builtin_oauth else "disabled",
-        "auth_methods": ["oauth", "x-api-key"] if settings.use_builtin_oauth else ["x-api-key"],
+        "auth_methods": ["x-api-key"],
         "components": {
             "mcp": mcp_status, 
             "iati_client": client_status,
@@ -551,6 +422,5 @@ if __name__ == "__main__":
     )
     logger.info("Starting UNHCR IATI MCP HTTP Server")
     logger.info(f"Host: {settings.host}, Port: {settings.port}")
-    logger.info(f"OAuth: {'enabled' if settings.use_builtin_oauth else 'disabled'}")
     logger.info("Metrics endpoint available at /metrics")
     uvicorn.run(app, host=settings.host, port=settings.port, log_level=settings.log_level.lower())

@@ -22,7 +22,6 @@ from ..config import settings
 from ..client import IATIClient as UNHCRClient
 from ..server import mcp as get_server
 from ..context import mcp
-from ..auth.oauth import OAuthServer
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +31,6 @@ _http_app = None
 _asgi_middleware = None
 _startup_lock = asyncio.Lock()
 _startup_done = False
-
-# Initialize OAuth server for Azure Function App
-oauth_server = OAuthServer()
-logger.info("OAuth 2.1 server initialized with RS256 signing")
 
 
 def get_mcp_app():
@@ -116,185 +111,6 @@ def _validate_function_names_idempotent(functions):
 
 
 app.validate_function_names = _validate_function_names_idempotent
-
-
-# ============================================================================
-# OAuth 2.1 Endpoints for Azure Function App
-# ============================================================================
-
-@app.function_name(name="oauth_token")
-@app.route(route="oauth/token", methods=["POST"])
-async def oauth_token_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
-    """
-    OAuth 2.1 Token Endpoint (Client Credentials Grant) with RS256 JWT tokens.
-    
-    This endpoint issues JWT tokens signed with RS256 algorithm for Copilot Studio compatibility.
-    Accessible at /api/oauth/token
-    """
-    try:
-        form_data = await req.form()
-        grant_type = form_data.get("grant_type")
-        client_id = form_data.get("client_id", settings.oauth_client_id)
-        client_secret = form_data.get("client_secret")
-        
-        if grant_type != "client_credentials":
-            return func.HttpResponse(
-                body=json.dumps({
-                    "error": "unsupported_grant_type", 
-                    "error_description": "Only client_credentials grant type is supported"
-                }),
-                status_code=400,
-                mimetype="application/json",
-                headers={"WWW-Authenticate": 'Bearer error="unsupported_grant_type"'}
-            )
-        
-        if not client_secret:
-            return func.HttpResponse(
-                body=json.dumps({
-                    "error": "invalid_request",
-                    "error_description": "client_secret (IATI API key) is required"
-                }),
-                status_code=400,
-                mimetype="application/json",
-                headers={"WWW-Authenticate": 'Bearer error="invalid_request"'}
-            )
-        
-        if not oauth_server.validate_client(client_id, client_secret):
-            return func.HttpResponse(
-                body=json.dumps({
-                    "error": "invalid_client",
-                    "error_description": "Invalid client credentials - check your IATI API key"
-                }),
-                status_code=401,
-                mimetype="application/json",
-                headers={"WWW-Authenticate": 'Bearer error="invalid_client"'}
-            )
-        
-        token = oauth_server.issue_token(
-            client_id=client_id,
-            client_secret=client_secret,
-            expiry=settings.oauth_token_expiry,
-        )
-        
-        return func.HttpResponse(
-            body=json.dumps(token.to_dict()),
-            status_code=200,
-            mimetype="application/json",
-            headers={
-                "Cache-Control": "no-store",
-                "Pragma": "no-cache",
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Token endpoint error: {e}", exc_info=True)
-        return func.HttpResponse(
-            body=json.dumps({
-                "error": "server_error",
-                "error_description": str(e)
-            }),
-            status_code=500,
-            mimetype="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-
-@app.function_name(name="oauth_authorization_server")
-@app.route(route=".well-known/oauth-authorization-server", methods=["GET"])
-async def oauth_authorization_server_metadata(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
-    """
-    OAuth 2.1 Authorization Server Metadata (RFC 8414).
-    
-    Accessible at /api/.well-known/oauth-authorization-server
-    """
-    try:
-        metadata = oauth_server.get_metadata()
-        return func.HttpResponse(
-            body=json.dumps(metadata),
-            status_code=200,
-            mimetype="application/json",
-            headers={
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=86400",
-                "Access-Control-Allow-Origin": "*"
-            }
-        )
-    except Exception as e:
-        logger.error(f"OAuth metadata error: {e}", exc_info=True)
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            status_code=500,
-            mimetype="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-
-@app.function_name(name="jwks")
-@app.route(route=".well-known/jwks.json", methods=["GET"])
-async def jwks_handler(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
-    """
-    JSON Web Key Set (JWKS) endpoint for JWT token verification.
-    
-    Accessible at /api/.well-known/jwks.json
-    """
-    try:
-        jwks_data = oauth_server.get_jwks()
-        return func.HttpResponse(
-            body=json.dumps(jwks_data),
-            status_code=200,
-            mimetype="application/json",
-            headers={
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=86400",
-                "Access-Control-Allow-Origin": "*"
-            }
-        )
-    except Exception as e:
-        logger.error(f"JWKS error: {e}", exc_info=True)
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            status_code=500,
-            mimetype="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
-
-
-@app.function_name(name="oauth_protected_resource")
-@app.route(route=".well-known/oauth-protected-resource", methods=["GET"])
-async def oauth_protected_resource_metadata(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
-    """
-    OAuth Protected Resource Metadata (RFC 9728).
-    
-    Accessible at /api/.well-known/oauth-protected-resource
-    """
-    try:
-        resource_url = settings.get_resource_url()
-        auth_servers = [resource_url]
-        
-        metadata = {
-            "resource": resource_url,
-            "authorization_servers": auth_servers
-        }
-        
-        return func.HttpResponse(
-            body=json.dumps(metadata),
-            status_code=200,
-            mimetype="application/json",
-            headers={
-                "Content-Type": "application/json",
-                "Cache-Control": "public, max-age=86400",
-                "Access-Control-Allow-Origin": "*"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Protected resource metadata error: {e}", exc_info=True)
-        return func.HttpResponse(
-            body=json.dumps({"error": str(e)}),
-            status_code=500,
-            mimetype="application/json",
-            headers={"Access-Control-Allow-Origin": "*"}
-        )
 
 
 @app.function_name(name="mcp")
