@@ -55,15 +55,26 @@ metrics/
 .azure-pipelines/
 .arc/
 
+scripts/
+azure-deploy/
+docs/
+docker-compose.yml
+Dockerfile
+dockerignore
+
 # Vibe/CLI
 .vibe/
 .vibeignore
 
 # Build outputs
-.python_packages/
+#.python_packages/
+pyproject.toml
+mcp_server.py
+.env.example
 
 # Local settings
 local.settings.json
+opencode.json
 
 # OS files
 .DS_Store

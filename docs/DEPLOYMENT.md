@@ -44,6 +44,72 @@ az functionapp create \
   --os-type Linux
 ```
 
+
+Add required env variables
+
+```bash
+# Set the runtime to Python (CRITICAL - without this, functions won't load!)
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings FUNCTIONS_WORKER_RUNTIME="python"
+
+# Set Functions extension version
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings FUNCTIONS_EXTENSION_VERSION="~4"
+
+
+# Set environment variables for IATI API
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings IATI_BASE_URL="https://api.iatistandard.org/datastore"
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings UNHCR_PUBLISHER_REF="XM-DAC-41121" 
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings ENVIRONMENT="production"
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings LOG_LEVEL="INFO"
+
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings MCP_TRANSPORT=http
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings AZURE_FUNCTION_APP=true
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings ENABLE_ORYX_BUILD=true
+
+az functionapp config appsettings set \
+  --name unhcr-iati-mcp-function \
+  --resource-group mcp \
+  --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
+
+az functionapp config set \
+  -g mcp \
+  -n unhcr-iati-mcp-function \
+  --linux-fx-version "Python|3.11"          
+```
+
+
 ### Step 2: Configure SSL Certificate
 
 Copilot Studio **requires HTTPS**. You have two options:
@@ -95,11 +161,20 @@ npm install -g azure-functions-core-tools@4
 cp .env.example .env
 # Edit .env with your IATI API key
 
+uv venv --python 3.11
+source .venv/bin/activate
+uv pip install -r requirements.txt
+
 # Deploy to Azure Function App
 func azure functionapp publish unhcr-iati-mcp \
   --python
 
-# Or use Azure CLI
+# Or use Azure CLI with a zip file 
+## Install module to a deployable folder
+python3.11 -m pip install   -r requirements.txt   --target=".python_packages/lib/site-packages"
+## Create zip file
+zip -r deploy.zip     function_app.py     host.json     requirements.txt     src     .python_packages     -x "*.git*"     -x "*.vscode*"     -x "__pycache__/*"     -x "*.pyc"     -x ".venv/*"     -x "tests/*"
+# Deploy zip file
 az functionapp deployment source config-zip \
   --name unhcr-iati-mcp \
   --resource-group unhcr-mcp-rg \

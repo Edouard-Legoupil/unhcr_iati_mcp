@@ -98,23 +98,45 @@ class IATIClient:
         """Close the HTTP client and release connections."""
         await self.client.aclose()
 
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_exponential(
-            multiplier=1,
-            min=2,
-            max=30,
-        ),
-        retry=retry_if_exception_type(
-            (
-                httpx.TimeoutException,
-                httpx.ConnectError,
-                IATIServerError,
-                IATIRateLimitError,
+    async def get_health(self) -> dict:
+        """
+        Get the health status of the IATI Datastore API.
+        
+        Returns:
+            Dictionary containing health status information
+        """
+        from unhcr_iati_mcp.config import settings
+        try:
+            # Try a simple query to test connectivity
+            response = await self.client.get(
+                f"{settings.iati_base_url}/activity/select",
+                params={"q": "*:*", "rows": 1, "wt": "json"},
+                timeout=5.0
             )
-        ),
-        reraise=True,
-    )
+            
+            if response.status_code == 200:
+                return {
+                    "status": "healthy",
+                    "api": "IATI Datastore",
+                    "base_url": settings.iati_base_url,
+                    "connected": True
+                }
+            else:
+                return {
+                    "status": "degraded",
+                    "api": "IATI Datastore",
+                    "base_url": settings.iati_base_url,
+                    "connected": False,
+                    "error": f"Unexpected status code: {response.status_code}"
+                }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "api": "IATI Datastore",
+                "base_url": settings.iati_base_url,
+                "connected": False,
+                "error": str(e)
+            }
     async def query(
         self,
         collection: str,

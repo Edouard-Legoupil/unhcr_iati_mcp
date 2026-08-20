@@ -204,12 +204,60 @@ async def health_handler(req: func.HttpRequest, context: func.Context) -> func.H
     """
     Health check endpoint.
     
+    Returns the health status of the MCP server.
+    Accessible at /api/health
+    """
+    try:
+        # Simple liveness check - server is running
+        body = {
+            "status": "healthy",
+            "server": {
+                "name": settings.MCP_SERVER_NAME,
+                "version": settings.MCP_SERVER_VERSION,
+                "environment": settings.ENVIRONMENT,
+            },
+            "api": {
+                "base_url": settings.get_api_base_url(),
+            },
+            "endpoints": {
+                "mcp": "/api/mcp",
+                "health": "/api/health",
+                "info": "/api/info",
+                "openapi": "/api/openapi.json",
+            },
+        }
+        
+        return func.HttpResponse(
+            body=json.dumps(body),
+            status_code=200,
+            mimetype="application/json",
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        return func.HttpResponse(
+            body=json.dumps({"status": "unhealthy", "error": str(e)}),
+            status_code=500,
+            mimetype="application/json",
+        )
+    """
+    Health check endpoint.
+    
     Returns the health status of the MCP server and UNHCR API.
     Accessible at /api/health
     """
     try:
-        async with UNHCRClient() as client:
-            health = await client.get_health()
+        # Try to check API health, but don't fail if it's not reachable
+        api_health = {"status": "unknown", "connected": False}
+        try:
+            async with UNHCRClient() as client:
+                api_health = await client.get_health()
+        except Exception as api_error:
+            logger.warning(f"API health check failed (non-critical): {api_error}")
+            api_health = {
+                "status": "unreachable",
+                "connected": False,
+                "error": str(api_error)
+            }
         
         body = {
             "status": "healthy",
@@ -220,7 +268,7 @@ async def health_handler(req: func.HttpRequest, context: func.Context) -> func.H
             },
             "api": {
                 "base_url": settings.get_api_base_url(),
-                "status": health.get("status", "unknown"),
+                **api_health
             },
             "endpoints": {
                 "mcp": "/api/mcp",
