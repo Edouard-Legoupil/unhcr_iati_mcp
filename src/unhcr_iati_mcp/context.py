@@ -6,21 +6,41 @@ It provides the FastMCP instance, IATI client, and UNHCR filter function that ar
 across the entire application.
 """
 
-from typing import Any, Dict
+import sys
+from typing import Any, Dict, Optional
 
 from fastmcp import FastMCP
 
 from unhcr_iati_mcp.client import IATIClient
 from unhcr_iati_mcp.config import settings
 
-# Initialize shared state
-mcp = FastMCP(
-    name="unhcr-iati-mcp",
-    instructions="IATI Datastore for UNHCR - Access UNHCR's humanitarian aid data from IATI"
-)
+# Singleton instances
+_mcp: Optional[FastMCP] = None
+_iati_client: Optional[IATIClient] = None
 
-# Create the IATI client instance
-iati_client = IATIClient()
+
+def get_mcp() -> FastMCP:
+    """Get or create the singleton MCP instance."""
+    global _mcp
+    if _mcp is None:
+        _mcp = FastMCP(
+            name="unhcr-iati-mcp",
+            instructions="IATI Datastore for UNHCR - Access UNHCR's humanitarian aid data from IATI"
+        )
+    return _mcp
+
+
+def get_iati_client() -> IATIClient:
+    """Get or create the singleton IATI client instance."""
+    global _iati_client
+    if _iati_client is None:
+        _iati_client = IATIClient()
+    return _iati_client
+
+
+# Initialize shared state - use the getter functions
+mcp = get_mcp()
+iati_client = get_iati_client()
 
 DEFAULT_MAX_RECORDS = 500
 

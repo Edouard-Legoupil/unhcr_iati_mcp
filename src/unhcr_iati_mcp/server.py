@@ -7,16 +7,21 @@ Supports both STDIO (default) and HTTP transport modes.
 
 import os
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fastmcp import FastMCP, Context
 from fastmcp.tools import Tool
 from pydantic import BaseModel, Field
 
-from .config import settings
-from .context import mcp as base_mcp, iati_client
-from .observability.logging import configure_logging, get_logger
-from .observability.metrics import configure_metrics
+# Import config first
+from unhcr_iati_mcp.config import settings
+
+# Import context next - this creates the base_mcp instance
+from unhcr_iati_mcp.context import mcp as base_mcp, iati_client
+
+# Import observability
+from unhcr_iati_mcp.observability.logging import configure_logging, get_logger
+from unhcr_iati_mcp.client import IATIClient
 
 logger = get_logger(__name__)
 
@@ -25,12 +30,6 @@ configure_logging(
     level=settings.log_level,
     log_dir=settings.log_dir,
     log_file=settings.log_file
-)
-
-# Configure metrics with settings
-configure_metrics(
-    metrics_dir=settings.metrics_dir,
-    metrics_file=settings.metrics_file
 )
 
 
@@ -56,11 +55,29 @@ async def lifespan(app: FastMCP) -> AsyncGenerator[None, None]:
 mcp = base_mcp
 mcp.lifespan = lifespan
 
-# Tool registration
-from unhcr_iati_mcp import tools
+# Now import tools - context is already imported, so tools will use the same mcp instance
+# Import individual tool modules to trigger registration
+from unhcr_iati_mcp.tools import activities
+from unhcr_iati_mcp.tools import transactions
+from unhcr_iati_mcp.tools import budgets
+from unhcr_iati_mcp.tools import donors
+from unhcr_iati_mcp.tools import sectors
+from unhcr_iati_mcp.tools import countries
+from unhcr_iati_mcp.tools import analytics
+from unhcr_iati_mcp.tools import export
+from unhcr_iati_mcp.tools import health
+from unhcr_iati_mcp.tools import code_resolution
 
-# Register resources
-from unhcr_iati_mcp import resources
+# Import resources
+from unhcr_iati_mcp.resources import countries as res_countries
+from unhcr_iati_mcp.resources import sectors as res_sectors
+from unhcr_iati_mcp.resources import results
+from unhcr_iati_mcp.resources import sdgs
+from unhcr_iati_mcp.resources import donors as res_donors
+from unhcr_iati_mcp.resources import glossary
+from unhcr_iati_mcp.resources import portfolio
+from unhcr_iati_mcp.resources import schemas
+from unhcr_iati_mcp.resources import code_tables
 
 
 class UNHCRServer:
@@ -68,7 +85,7 @@ class UNHCRServer:
     
     def __init__(self):
         """Initialize the server."""
-        self.client: Optional[UNHCRClient] = None
+        self.client: Optional[IATIClient] = None
         self.app: Optional[FastMCP] = None
     
     @asynccontextmanager
@@ -76,7 +93,7 @@ class UNHCRServer:
         """Application lifespan manager."""
         # Startup
         logger.info("Starting UNHCR MCP Server")
-        self.client = UNHCRClient()
+        self.client = IATIClient()
         yield
         # Shutdown
         logger.info("Shutting down UNHCR MCP Server")
@@ -88,30 +105,11 @@ class UNHCRServer:
         if self.app is not None:
             return self.app
         
-        # Create FastMCP app
-        self.app = FastMCP(
-            name=settings.MCP_SERVER_NAME,
-            version=settings.MCP_SERVER_VERSION,
-            lifespan=self.lifespan,
-        )
-        
-        # Register tools
-        self._register_tools()
-        self._register_resources()
-        
-        def _register_tools(self) -> None:
-            """Register all MCP tools."""
-            if self.app is None:
-                return
-            self.app.add_tool(self.tools)
-        
-        def _register_resources(self) -> None:
-            """Register all MCP resources."""
-            if self.app is None:
-                return
-            self.app.add_tool(self.resources)
+        # Use the base_mcp instance which already has tools and resources registered
+        self.app = mcp
         
         return self.app
+
 
 # Global server instance
 _server: Optional[UNHCRServer] = None
@@ -125,5 +123,5 @@ def get_server() -> UNHCRServer:
     return _server
 
 
-# Create the FastMCP app
+# Create the FastMCP app - this is the main app instance that gets imported
 app = get_server().create_app()

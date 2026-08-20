@@ -1,3 +1,7 @@
+applied_migrations = [
+    "bash_read_only_defaults_v1",
+]
+
 [[mcp_servers]]
 name = "unhcr-iati-mcp"
 transport = "stdio"
@@ -7,7 +11,6 @@ args = [
 ]
 cwd = "/home/edouard/python/unhcr_iati_mcp"
 disabled_tools = []
-
 
 [tools.bash]
 allowlist = [
