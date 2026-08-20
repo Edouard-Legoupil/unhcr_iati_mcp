@@ -21,6 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 from ..config import settings
 from ..client import IATIClient as UNHCRClient
 from ..context import mcp
+from ..server import get_server
 
 logger = logging.getLogger(__name__)
 
