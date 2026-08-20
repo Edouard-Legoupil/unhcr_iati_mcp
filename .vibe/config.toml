@@ -1,7 +1,3 @@
-applied_migrations = [
-    "bash_read_only_defaults_v1",
-]
-
 [[mcp_servers]]
 name = "unhcr-iati-mcp"
 transport = "stdio"

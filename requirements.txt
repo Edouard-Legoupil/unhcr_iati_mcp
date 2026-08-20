@@ -2,30 +2,41 @@
 # Python 3.10-3.11 compatible
 # Tested with Azure Functions v4
 
-# Core MCP Server
-fastmcp>=1.0.0,<2.0.0
 
-# HTTP Server
-fastapi>=0.115.0,<1.0.0
-starlette>=0.38.0,<1.0.0
-uvicorn[standard]>=0.30.0,<1.0.0
+# Core dependencies 
+fastmcp>=1.0.0
+aiohttp>=3.8.0
+uvicorn[standard]>=0.20.0
 
-# Azure Functions
-azure-functions>=1.21.0,<2.0.0
-azure-identity>=1.17.0,<2.0.0
+# Azure Functions specific dependencies
+azure-functions>=1.16.0
+azure-identity>=1.15.0
+azure-keyvault-secrets>=4.5.0
 
-# Async HTTP
-httpx>=0.27.0,<1.0.0
-anyio>=4.0.0,<5.0.0
+# Required for Starlette ASGI compatibility
+starlette>=0.37.0
+
+ 
+# For better async support
+anyio>=4.0.0
+httpx>=0.24.0
+
+# For JSON logging
+json-logging>=1.0.0
+
+# For environment variable management
+python-dotenv>=1.0.0
+python-multipart>=0.0.6,<1.0.0
+
 
 # Data & Serialization
-pydantic>=2.7.0,<3.0.0
-pydantic-settings>=2.2.0,<3.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# For observability and metrics
 prometheus-client>=0.20.0,<1.0.0
 tenacity>=8.2.0,<9.0.0
-redis>=5.0.0,<6.0.0
-python-dotenv>=1.0.0,<2.0.0
-python-multipart>=0.0.6,<1.0.0
+redis>=5.0.0,<6.0.0 
 
 # IATI data processing
 pyreadr>=0.4.0,<1.0.0

@@ -15,8 +15,8 @@ import uvicorn
 
 from .server import app, get_server
 from .config import settings
-from .client import UNHCRClient
-from .exceptions import UNHCRBaseException
+from .client import IATIClient as UNHCRClient
+from .client import IATIError as UNHCRBaseException
 
 logger = logging.getLogger(__name__)
 
