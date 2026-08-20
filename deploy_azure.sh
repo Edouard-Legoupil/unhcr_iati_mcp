@@ -61,8 +61,7 @@ echo "=== Deploying to Azure ==="
 az functionapp deployment source config-zip \
     -g "$RESOURCE_GROUP" \
     -n "$FUNCTION_APP_NAME" \
-    --src "$DEPLOYMENT_PACKAGE" \
-    --target-path /home/site/wwwroot
+    --src "$DEPLOYMENT_PACKAGE"
 
 echo ""
 echo "=== Deployment Complete ==="

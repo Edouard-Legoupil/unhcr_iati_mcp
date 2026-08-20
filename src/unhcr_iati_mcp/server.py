@@ -9,12 +9,14 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
+from fastmcp.tools import Tool
+from pydantic import BaseModel, Field
 
-from unhcr_iati_mcp.config import settings
-from unhcr_iati_mcp.context import mcp as base_mcp, iati_client
-from unhcr_iati_mcp.observability.logging import configure_logging, get_logger
-from unhcr_iati_mcp.observability.metrics import configure_metrics
+from .config import settings
+from .context import mcp as base_mcp, iati_client
+from .observability.logging import configure_logging, get_logger
+from .observability.metrics import configure_metrics
 
 logger = get_logger(__name__)
 
@@ -61,91 +63,67 @@ from unhcr_iati_mcp import tools
 from unhcr_iati_mcp import resources
 
 
-def main():
-    """Run the MCP server in the configured transport mode."""
-    # Check transport mode
-    transport = os.getenv("MCP_TRANSPORT", settings.mcp_transport)
+class UNHCRServer:
+    """UNHCR Refugee Data Portal MCP Server."""
     
-    if transport.lower() == "http":
-        logger.info("Starting in HTTP mode")
-        _run_http_server()
-    else:
-        logger.info("Starting in STDIO mode")
-        # For STDIO mode, still use the basic MCP server
-        mcp.run()
+    def __init__(self):
+        """Initialize the server."""
+        self.client: Optional[UNHCRClient] = None
+        self.app: Optional[FastMCP] = None
+    
+    @asynccontextmanager
+    async def lifespan(self, app: FastMCP):
+        """Application lifespan manager."""
+        # Startup
+        logger.info("Starting UNHCR MCP Server")
+        self.client = UNHCRClient()
+        yield
+        # Shutdown
+        logger.info("Shutting down UNHCR MCP Server")
+        if self.client:
+            await self.client.close()
+    
+    def create_app(self) -> FastMCP:
+        """Create and configure the FastMCP application."""
+        if self.app is not None:
+            return self.app
+        
+        # Create FastMCP app
+        self.app = FastMCP(
+            name=settings.MCP_SERVER_NAME,
+            version=settings.MCP_SERVER_VERSION,
+            lifespan=self.lifespan,
+        )
+        
+        # Register tools
+        self._register_tools()
+        self._register_resources()
+        
+        def _register_tools(self) -> None:
+            """Register all MCP tools."""
+            if self.app is None:
+                return
+            self.app.add_tool(self.tools)
+        
+        def _register_resources(self) -> None:
+            """Register all MCP resources."""
+            if self.app is None:
+                return
+            self.app.add_tool(self.resources)
+        
+        return self.app
+
+# Global server instance
+_server: Optional[UNHCRServer] = None
 
 
-def _run_http_server():
-    """Run the HTTP server with Streamable HTTP transport for Copilot Studio."""
-    import uvicorn
-    from fastapi.middleware.cors import CORSMiddleware
-    from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
-    
-    logger.info(f"HTTP Server listening on {settings.host}:{settings.port}")
-    logger.info(f"Resource URL: {settings.get_resource_url()}")
-    logger.info(f"Transport: streamable-http (for Copilot Studio compatibility)")
-    
-    # Create FastMCP app with Streamable HTTP transport
-    mcp_app = mcp.create_app()
-    
-    # Create HTTP app with Streamable HTTP transport
-    http_app = mcp_app.http_app(
-        transport="streamable-http",
-        path="/mcp",
-        stateless_http=True,
-        json_response=True,
-    )
-    
-    # Add CORS middleware for Copilot Studio
-    http_app.add_middleware(
-        StarletteCORSMiddleware,
-        allow_origins=[
-            "*",
-            "https://copilotstudio.microsoft.com",
-            "https://*.copilotstudio.microsoft.com",
-            "https://copilot.microsoft.com",
-            "https://*.copilot.microsoft.com",
-            "https://m365.cloud.microsoft",
-            "https://*.m365.cloud.microsoft",
-            "http://localhost:*",
-            "http://127.0.0.1:*",
-        ],
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
-        allow_headers=["*"],
-        expose_headers=[
-            "Mcp-Session-Id",
-            "mcp-session-id",
-            "Content-Type",
-            "Content-Length"
-        ],
-        allow_credentials=True,
-        max_age=86400,
-    )
-    
-    # Configure SSL if certificates are provided
-    ssl_config = {}
-    if settings.ssl_certfile and settings.ssl_keyfile:
-        ssl_config = {
-            "ssl_keyfile": settings.ssl_keyfile,
-            "ssl_certfile": settings.ssl_certfile,
-        }
-        if settings.ssl_ca_certs:
-            ssl_config["ssl_ca_certs"] = settings.ssl_ca_certs
-        if settings.ssl_cert_reqs:
-            ssl_config["ssl_cert_reqs"] = settings.ssl_cert_reqs
-        logger.info(f"HTTPS enabled with certificate: {settings.ssl_certfile}")
-    else:
-        logger.warning("HTTPS not configured - Copilot Studio requires HTTPS for production")
-    
-    uvicorn.run(
-        http_app,
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level.lower(),
-        access_log=True,
-        **ssl_config
-    )
+def get_server() -> UNHCRServer:
+    """Get or create global server instance."""
+    global _server
+    if _server is None:
+        _server = UNHCRServer()
+    return _server
 
 
-if __name__ == "__main__":
-    main()
+# Create the FastMCP app
+app = get_server().create_app()
